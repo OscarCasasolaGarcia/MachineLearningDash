@@ -12,14 +12,22 @@ from dash.dependencies import Input, Output, State
 from dash import dcc, html, dash_table, Input, Output, callback
 import plotly.express as px
 import plotly.graph_objs as go         # Para la visualización de datos basado en plotly
-
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler  
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
+
+
+# load_figure_template("plotly_white")
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "danger",
+        "children": "SELECT THEME",
+    },
+)
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
 
 tabs_styles = {
     'height': '44px'
@@ -33,13 +41,14 @@ tab_style = {
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'backgroundColor': 'Black',
     'color': 'white',
     'padding': '6px'
 }
 
 layout = html.Div([
-    html.H3('ACP'),
+    html.H1('Principal Component Analysis (PCA)💻', style={'text-align': 'center'}),
+    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -54,14 +63,13 @@ layout = html.Div([
             'borderRadius': '5px',
             'textAlign': 'center',
             'margin': '10px',
-            #Que esté alineado con el centro de la página:
             'display': 'flex',
             'justify-content': 'center',
             'align-items': 'center',
             'flex-direction': 'column'
         },
-        # Allow multiple files to be uploaded
-        multiple=True
+        multiple=True,
+        accept='.csv, .txt, .xls, .xlsx'
     ),
     html.Div(id='output-data-upload-acp'), # output-datatable
     html.Div(id='output-div'),
@@ -150,7 +158,7 @@ def parse_contents(contents, filename,date):
                                 text=str(round(df.corr().values[i][j], 4)),
                                 showarrow=False,
                                 font=dict(
-                                    color='white' if abs(df.corr().values[i][j]) > 0.6 or df.corr().values[i][j] < -0.6 else 'black'
+                                    color='white' if abs(df.corr().values[i][j]) >= 0.67  else 'black'
                                 )
                             ) for i in range(len(df.corr().columns)) for j in range(len(df.corr().columns))
                         ]
@@ -160,7 +168,7 @@ def parse_contents(contents, filename,date):
         ]),        
 
         # Estilizamos el botón con Bootstrap
-        dbc.Button("Click para obtener los componentes principales", color="primary", className="mr-1", id='submit-button-standarized'),
+        dbc.Button("Click para obtener los componentes principales", color="danger", className="mr-1", id='submit-button-standarized', style={'width': '100%'}),
 
         html.Hr(),
 
@@ -179,13 +187,6 @@ def parse_contents(contents, filename,date):
                             'backgroundColor': 'rgb(248, 248, 248)'
                         }
                     ],
-                    filter_action='native',
-                    sort_action='native',
-                    sort_mode='multi',
-                    column_selectable='single',
-                    row_deletable=True,
-                    editable=True,
-                    row_selectable='multi',
                     # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
                     style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
                     # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
@@ -193,6 +194,10 @@ def parse_contents(contents, filename,date):
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_data={'border': '1px solid black'}
                 ),
+
+                html.Hr(),
+
+
             ]),
 
             dcc.Tab(label='Número de componentes principales y la varianza acumulada', style=tab_style, selected_style=tab_selected_style,children=[
@@ -203,36 +208,7 @@ def parse_contents(contents, filename,date):
                 ),
             ]),
 
-            dcc.Tab(label='Proporción de cargas', style=tab_style, selected_style=tab_selected_style,children=[
-                dbc.Alert('Proporción de cargas del número de componentes principales obtenidos con anterioridad', color="primary"),
-                # Mostramos la tabla generada en el callback ID = DataTableCargas
-                dash_table.DataTable(
-                    id='DataTableCargas',
-                    columns=[{"name": i, "id": i} for i in df.select_dtypes(include=['float64', 'int64']).columns],
-                    page_size=8,
-                    style_data_conditional=[
-                        {
-                            'if': {'row_index': 'odd'},
-                            'backgroundColor': 'rgb(248, 248, 248)'
-                        }
-                    ],
-                    filter_action='native',
-                    sort_action='native',
-                    sort_mode='multi',
-                    column_selectable='single',
-                    row_deletable=True,
-                    editable=True,
-                    row_selectable='multi',
-                    # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-                    style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-                    # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-                    style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black', 'border': '1px solid black'},
-                    style_table={'height': '300px', 'overflowY': 'auto'},
-                    style_data={'border': '1px solid black'}
-                ),
-            ]),
-
-            dcc.Tab(label='Selección de variables', style=tab_style, selected_style=tab_selected_style,children=[
+            dcc.Tab(label='Proporción de cargas y selección de variables', style=tab_style, selected_style=tab_selected_style,children=[
                 dbc.Alert('Considerando un mínimo de 50% para el análisis de cargas, se seleccionan las variables basándonos en este gráfico de calor', color="primary"),
                 # Mostramos la gráfica generada en el callback ID = FigComponentes
                 dcc.Graph(
@@ -256,7 +232,6 @@ def update_output(list_of_contents, list_of_names,list_of_dates):
 @callback(
     Output('DataTableStandarized','data'),
     Output('varianza', 'figure'),
-    Output('DataTableCargas', 'data'),
     Output('FigComponentes', 'figure'),
     Input('submit-button-standarized','n_clicks'))
 def calculoPCA(n_clicks):     
@@ -289,14 +264,15 @@ def calculoPCA(n_clicks):
                             xaxis_title='Número de componentes',
                             yaxis_title='Varianza acumulada')
         # Se resalta el número de componentes que se requieren para alcanzar el 90% de varianza acumulada
-        fig.add_shape(type="line", x0=0, y0=0.9, x1=numComponentesACP, y1=0.9, line=dict(color="Red", width=2, dash="dash"))
+        fig.add_shape(type="line", x0=0, y0=0.9, x1=Varianza.size-1, y1=0.9, line=dict(color="Red", width=2, dash="dash"))
         fig.add_shape(type="line", x0=numComponentesACP, y0=0, x1=numComponentesACP, y1=varAcumuladaACP, line=dict(color="Green", width=2, dash="dash"))
         # Se muestra un punto en la intersección de las líneas
         fig.add_annotation(x=numComponentesACP, y=varAcumuladaACP, text=str(round(varAcumuladaACP*100, 1))+f'%. {numComponentesACP+1} Componentes', showarrow=True, arrowhead=1)
         # Se agregan puntos en la línea de la gráfica
         fig.add_scatter(x=np.arange(0, Varianza.size, step=1), y=np.cumsum(Varianza), mode='markers', marker=dict(size=10, color='blue'), showlegend=False, name='# Componentes')
-        # Se agrega un área de sombreado debajo de la línea
-        fig.add_trace(go.Scatter(x=np.arange(0, Varianza.size, step=1), y=np.cumsum(Varianza), fill='tozeroy', fillcolor='rgba(0,100,80,0.2)', line_color='rgba(255,255,255,0)', showlegend=False, name='Varianza acumulada'))
+        fig.add_scatter(x=np.arange(0, Varianza.size, step=1), y=np.cumsum(Varianza), fill='tozeroy', mode='none', showlegend=False, name='Área bajo la curva') # Se le agrega el área bajo la curva
+        fig.update_xaxes(range=[0, Varianza.size-1]) # Se ajusta al tamaño de la gráfica
+        fig.update_yaxes(range=[0, 1.1]) # Se ajusta al tamaño de la gráfica
 
         # 6
         CargasComponentes = pd.DataFrame(abs(pca.components_), columns=df_numeric.columns)
@@ -314,7 +290,11 @@ def calculoPCA(n_clicks):
                     color = 'black'
                 fig2.add_annotation(x=j, y=i, text=str(round(CargasComponentess.iloc[i,j], 4)), showarrow=False, font=dict(color=color))
 
-        return MEstandarizada.to_dict('records'), fig, CargasComponentess.to_dict('records'), fig2
+        return MEstandarizada.to_dict('records'), fig, fig2
+    
+    elif n_clicks is None:
+        import dash.exceptions as de
+        raise de.PreventUpdate
 
 
 

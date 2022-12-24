@@ -11,10 +11,17 @@ import dash
 from dash.dependencies import Input, Output, State
 from dash import dcc, html, dash_table, Input, Output, callback
 import plotly.express as px
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "danger",
+        "children": "SELECT THEME",
+    },
+)
 
 tabs_styles = {
     'height': '44px'
@@ -28,13 +35,14 @@ tab_style = {
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'backgroundColor': 'Black',
     'color': 'white',
     'padding': '6px'
 }
 
 layout = html.Div([
-    html.H3('EDA'),
+    html.H1('Exploratory Data Analysis (EDA)📊', style={'text-align': 'center'}),
+    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -49,14 +57,13 @@ layout = html.Div([
             'borderRadius': '5px',
             'textAlign': 'center',
             'margin': '10px',
-            #Que esté alineado con el centro de la página:
             'display': 'flex',
             'justify-content': 'center',
             'align-items': 'center',
             'flex-direction': 'column'
         },
-        # Allow multiple files to be uploaded
-        multiple=True
+        multiple=True, # Allow multiple files to be uploaded
+        accept='.csv, .txt, .xls, .xlsx' # Restrict to csv, txt, xls, xlsx files
     ),
     html.Div(id='output-data-upload'),
 
@@ -80,41 +87,26 @@ def parse_contents(contents, filename,date):
             'There was an error processing this file.'
         ])
 
-
     return html.Div([
         dbc.Alert('El archivo cargado es: {}'.format(filename), color="success"),
         # Solo mostramos las primeras 5 filas del dataframe, y le damos estilo para que las columnas se vean bien
         dash_table.DataTable(
-            #Centramos la tabla de datos:
             data=df.to_dict('records'),
             page_size=8,
-            style_data_conditional=[
-                {
-                    'if': {'row_index': 'odd'},
-                    'backgroundColor': 'rgb(248, 248, 248)'
-                }
-            ],
             filter_action='native',
             sort_action='native',
             sort_mode='multi',
             column_selectable='single',
             row_deletable=True,
+            cell_selectable=True,
             editable=True,
             row_selectable='multi',
-
-            columns=[{'name': i, 'id': i} for i in df.columns],
-            # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-            style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-            # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-            style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black', 'border': '1px solid black'},
-            style_table={'height': '300px', 'overflowY': 'auto'},
-            style_data={'border': '1px solid black'}
+            columns=[{'name': i, 'id': i, "deletable":True} for i in df.columns],
+            style_table={'height': '300px', 'overflowX': 'auto'},
         ),
-
-
+        
         html.Hr(),  # horizontal line
 
-        # Devolvemos el número de filas y columnas del dataframe
         dbc.Row([
             dbc.Col([
                 dbc.Alert('El número de Filas del Dataframe es de: {}'.format(df.shape[0]), color="info"),
@@ -125,207 +117,332 @@ def parse_contents(contents, filename,date):
         ]),
         html.Hr(),
 
-
-        # Aplicamos estilos a los botones
         dcc.Tabs([
-            #Gráfica de pastel de los tipos de datos
-            dcc.Tab(label='Tipos de datos', style=tab_style, selected_style=tab_selected_style,children=[
-                # Mostramos un gráfico de barras de los tipos de datos de cada columna del dataframe
-                dcc.Graph(
-                    id='tipos',
-                    figure={
-                        'data': [
-                            {'labels': df.dtypes.value_counts().index.map(str), 'values': df.dtypes.value_counts(), 'type': 'pie', 'name': 'Tipos de datos'}
-                        ],
-                        'layout': {
-                            'title': 'Tipos de datos'
-                        }
-                    }
-                ),
-            ]),
+            dcc.Tab(label='Tipos de datos, Valores Nulos y Valores Únicos', style=tab_style, selected_style=tab_selected_style,children=[
+                html.Br(),
+                dbc.Table(
+                    # Mostramos los valores nulos de cada columna del dataframe
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la columna y las demás columnas: nombre de las estadísticas (count, mean, std, min, 25%, 50%, 75%, max)
+                                    html.Th('Variable'),
+                                    html.Th('Tipo de dato'),
+                                    html.Th('Valores nulos'),
+                                    html.Th('Valores únicos'),
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td(column), # Primera columna: nombre de la columna
+                                        html.Td(
+                                            str(df.dtypes[column]),
+                                            style={
+                                                'color': 'green' if df.dtypes[column] == 'float64' else 'blue' if df.dtypes[column] == 'int64' else 'red' if df.dtypes[column] == 'object' else 'orange' if df.dtypes[column] == 'bool' else 'purple'
+                                            }
+                                        ), # Segunda columna: tipo de dato
+                                        html.Td(
+                                            df[column].isnull().sum(),
+                                            style={
+                                                'color': 'red' if df[column].isnull().sum() > 0 else 'green'
+                                            }
+                                        ), # Tercera columna: valores nulos
+                                        #Valores únicos
+                                        html.Td(
+                                            df[column].nunique(),
+                                            style={
+                                                'color': 'green' if df[column].nunique() == 0 else 'black'
+                                            }
+                                        )
 
-            dcc.Tab(label='Valores nulos', style=tab_style, selected_style=tab_selected_style,children=[
-                # Mostramos un gráfico de barras de los tipos de datos de cada columna del dataframe
-                dcc.Graph(
-                    id='nulos',
-                    figure={
-                        'data': [
-                            {'x': df.isnull().sum().index, 'y': df.isnull().sum(), 'type': 'bar', 'name': 'Valores nulos'}
-                        ],
-                        'layout': {
-                            'title': 'Valores nulos',
-                            'annotations': [
-                                dict(
-                                    x=df.isnull().sum().index[i],
-                                    y=df.isnull().sum()[i],
-                                    text=str(df.isnull().sum()[i]),
-                                    showarrow=False,
-                                    # Por encima de la barra
-                                    yshift=10
-                                ) for i in range(len(df.isnull().sum()))
+                                    ]
+                                ) for column in df.dtypes.index
                             ]
-                        }
-                    }
+                        )
+                    ],
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    # Texto centrado y tabla alineada al centro de la página
+                    style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
 
-            # dcc.Tab(label='Resumen estadístico', style=tab_style, selected_style=tab_selected_style,children=[
-            #     dash_table.DataTable(
-            #         #Centramos la tabla de datos:
-            #         data=df.describe().to_dict('records'),
-            #         columns=[{'name': i, 'id': i} for i in df.describe().columns],
+            dcc.Tab(label='Resumen estadístico', style=tab_style, selected_style=tab_selected_style,children=[
+                html.Br(),
+                dbc.Table(
+                    # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max) y las demás columnas: nombre de las columnas (recorremos las columnas del dataframe)
+                                    html.Th('Estadística'),
+                                    *[html.Th(column) for column in df.describe().columns]
 
-            #         style_data_conditional=[
-            #             {
-            #                 'if': {'row_index': 'odd'},
-            #                 'backgroundColor': 'rgb(248, 248, 248)'
-            #             }
-            #         ],
-            #         # Mostramos en las filas el nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max)
-            #         # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-            #         style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-            #         # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-            #         style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black'},
-            #         style_table={'height': '300px', 'overflowY': 'auto'}
-            #     ),
-            # ]),
-
-            dcc.Tab(label='Resumen estadístico de las columnas numéricas', style=tab_style, selected_style=tab_selected_style,children=[
-                # Generamos un resumen estadístico de las columnas numéricas del dataframe
-                dcc.Graph(
-                    id='resumen',
-                    figure={
-                        'data': [
-                            {'x': df.describe().columns, 'y': df.describe().loc['count'], 'type': 'bar', 'name': 'count'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['mean'], 'type': 'bar', 'name': 'Mean'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['std'], 'type': 'bar', 'name': u'STD'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['min'], 'type': 'bar', 'name': 'Min'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['25%'], 'type': 'bar', 'name': '25%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['50%'], 'type': 'bar', 'name': '50%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['75%'], 'type': 'bar', 'name': '75%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['max'], 'type': 'bar', 'name': 'Max'},
-                        ],
-                        'layout': {
-                            'title': 'Resumen estadístico'
-                        }
-                    }
-                ),
-            ]),
-            
-
-            dcc.Tab(label='Valores únicos', style=tab_style, selected_style=tab_selected_style,children=[
-                # Mostramos un gráfico de barras de los valores únicos de cada columna del dataframe
-                dcc.Graph(
-                    id='unicos',
-                    figure={
-                        'data': [
-                            {'x': df.columns, 'y': df.nunique(), 'type': 'bar', 'name': 'Valores únicos'}
-                        ],
-                        'layout': {
-                            'title': 'Valores únicos',
-                            'xaxis': {'title': 'Columnas'},
-                            'yaxis': {'title': 'Valores únicos'},
-                            # Agregamos el número de valores únicos por encima de cada barra
-                            'annotations': [
-                                dict(
-                                    x=df.columns[i],
-                                    y=df.nunique()[i],
-                                    text=str(df.nunique()[i]),
-                                    showarrow=False,
-                                    # Por encima de la barra
-                                    yshift=10
-                                ) for i in range(len(df.columns))
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        # Recorremos el for para mostrar el nombre de la estadística a la izquierda de cada fila
+                                        html.Td('count'),
+                                        *[html.Td(df.describe().loc['count'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('mean'),
+                                        *[html.Td(df.describe().loc['mean'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('std'),
+                                        *[html.Td(df.describe().loc['std'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('min'),
+                                        *[html.Td(df.describe().loc['min'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('25%'),
+                                        *[html.Td(df.describe().loc['25%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('50%'),
+                                        *[html.Td(df.describe().loc['50%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('75%'),
+                                        *[html.Td(df.describe().loc['75%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('max'),
+                                        *[html.Td(df.describe().loc['max'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
                             ]
-                        }
-                    }
-                ),
-            ]),
-            dcc.Tab(label='Valores duplicados', style=tab_style, selected_style=tab_selected_style,children=[
-                # Mostramos un gráfico de barras de los valores duplicados de cada columna del dataframe
-                dcc.Graph(
-                    figure={
-                        'data': [
-                            {'x': df.columns, 'y': df.duplicated().sum(), 'type': 'bar', 'name': 'Valores duplicados'}
-                        ],
-                        'layout': {
-                            'title': 'Valores duplicados',
-                            'xaxis': {'title': 'Columnas'},
-                            'yaxis': {'title': 'Valores duplicados'}
-                        }
-                    }
-                ),
-            ]),
+                        )
+                    ],
 
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    style={'textAlign': 'center', 'width': '100%'}
+                ),
+            ]),
 
             dcc.Tab(label='Identificación de valores atípicos', style=tab_style, selected_style=tab_selected_style,children=[
                 # Mostramos un histograma por cada variable de tipo numérico:
-                dcc.Graph(
-                    id='histogramas',
-                    figure={
-                        'data': [
-                            {'x': df[col], 'type': 'histogram', 'name': col} for col in df.select_dtypes(include=['int64', 'float64']).columns
-                        ],
-                        'layout': {
-                            'title': 'Histogramas',
-                            'barmode': 'overlay',
-                            'xaxis': {'title': 'Valores'},
-                            'yaxis': {'title': 'Frecuencia'}
-                        }
-                    }
-                ),
+
+                html.Div([
+                    "Selecciona la o las variables para mostrar su histograma:",
+                    dcc.Dropdown(
+                        [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                        # Seleccionamos por defecto todas las columnas numéricas, a partir de la segunda
+                        value=[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2][1:3],
+                        id='value-histograma-eda',
+                        multi=True
+                    ),
+
+                    dcc.Graph(id='histograma-eda'),
+                ]),
             ]),
 
             # Gráfica de cajas y bigotes
             dcc.Tab(label='Gráfica de cajas y bigotes', style=tab_style, selected_style=tab_selected_style,children=[
-                # Mostramos un histograma por cada variable de tipo numérico:
-                dcc.Graph(
-                    id='cajas',
-                    figure={
-                        'data': [
-                            {'x': df[col], 'type': 'box', 'name': col} for col in df.select_dtypes(include=['int64', 'float64']).columns
-                        ],
-                        'layout': {
-                            'title': 'Cajas y bigotes',
-                            'barmode': 'overlay',
-                            'xaxis': {'title': 'Valores'},
-                            'yaxis': {'title': 'Frecuencia'}
-                        }
-                    }
-                ),
+                html.Div([
+                    "Selecciona la o las variables para mostrar su gráfica de cajas y bigotes:",
+                    dcc.Dropdown(
+                        [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                        # Seleccionamos por defecto todas las columnas numéricas, a partir de la segunda
+                        value=[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2][0:1],
+                        id='value-bigotes-eda',
+                        multi=True
+                    ),
+                
+                dcc.Graph(id='bigotes-eda'),
+                ]),
             ]),
 
             
             dcc.Tab(label='Resumen estadístico variables categóricas', style=tab_style, selected_style=tab_selected_style,children=[
-                dash_table.DataTable(
-                    #Centramos la tabla de datos:
-                    data=df.describe(include='object').to_dict('records'),
-                    columns=[{'name': i, 'id': i} for i in df.describe(include='object').columns],
-
-                    style_data_conditional=[
-                        {
-                            'if': {'row_index': 'odd'},
-                            'backgroundColor': 'rgb(248, 248, 248)'
-                        }
+                # Verificamos que existan variables de tipo object, sino, mostramos un mensaje
+                html.Br(),
+                html.Div(
+                    children=[
+                        html.H4('Resumen estadístico variables categóricas'),
+                        html.P('No se encontraron variables de tipo object'),
                     ],
-                    # Mostramos en las filas el nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max)
-                    # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-                    style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-                    # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-                    style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black'},
-                    style_table={'height': '200px', 'overflowY': 'auto'}
+                    style={'display': 'none'} if len(df.select_dtypes(include=['object']).columns) > 0 else {}
                 ),
-                dbc.Alert('Fila 1: count', color="primary"),
-                dbc.Alert('Fila 2: unique', color="secondary"),
-                dbc.Alert('Fila 3: top', color="primary"),
-                dbc.Alert('Fila 4: freq', color="secondary"),
+
+                dbc.Table(
+                    # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    html.Th("Descripción"),
+                                    html.Th("Valor"),
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td("Variables de tipo object"),
+                                        # Mostramos el número de variables de tipo object y cuáles son:
+                                        html.Td(
+                                            [
+                                                html.P("Número de variables: {}".format(len(df.select_dtypes(include=['object']).columns))),
+                                                # Mostramos el nombre de las variables de tipo object
+                                                html.P("Variables: {}".format(", ".join(df.select_dtypes(include=['object']).columns))),
+                                            ]
+                                        ),
+                                    ]
+                                ),
+
+                                html.Tr(
+                                    [
+                                        html.Td("Total de valores de tipo Object (Count)"),
+                                        html.Td(
+                                            [
+                                                html.P("Total: {}".format(df.select_dtypes(include=['object']).count().sum())),
+                                                # Mostramos el nombre de las variables de tipo object y el número de valores por variable
+                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].count()) for col in df.select_dtypes(include=['object']).columns]))),
+                                            ]
+                                        ),
+                                    ]
+                                ),
+
+                                html.Tr(
+                                    [
+                                        html.Td("Valores únicos (Unique)"),
+                                        html.Td(
+                                            [
+                                                # Mostramos el número de valores únicos por variable de tipo object
+                                                html.P("Total: {}".format(df.select_dtypes(include=['object']).nunique().sum())),
+                                                # Mostramos el nombre de las variables de tipo object y el número de valores únicos por variable
+                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].nunique()) for col in df.select_dtypes(include=['object']).columns]))),
+                                            ]
+                                        ),
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td("Top"),
+                                        html.Td(
+                                            [
+                                                # Mostramos el valor más frecuente por variable de tipo object
+                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].value_counts().index[0]) for col in df.select_dtypes(include=['object']).columns]))),
+                                            ]
+                                        ),
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td("Valores más frecuentes (Freq)"),
+                                        html.Td(
+                                            [
+                                                # Mostramos la frecuencia del valor más frecuente por variable de tipo object
+                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].value_counts().values[0]) for col in df.select_dtypes(include=['object']).columns]))),
+                                            ]
+                                        ),
+                                    ]
+                                ),
+                            ]
+                        )
+                    ],
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    style={'textAlign': 'center', 'width': '100%'}
+                ),
+                
+                
             ]),
 
 
-            dcc.Tab(label='Analisis Correlacional', style=tab_style, selected_style=tab_selected_style,children=[
+            dcc.Tab(label='Análisis Correlacional', style=tab_style, selected_style=tab_selected_style,children=[
+                html.Br(),
+
+                dbc.Button(
+                    "Haz click para obtener información adicional del Análisis Correlacional de Datos", id="open-body-scroll-eda", n_clicks=0
+                ),
+
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("Análisis Correlacional de Datos (ACD - CDA) 💭")),
+                        dbc.ModalBody(
+                            [
+                                dcc.Markdown('''
+                                💭 El ACD (CDA) es útil para reducir el número de variables, de un espacio de alta dimensión a uno de menor número de dimensiones. 
+
+                                💭 Esto se logra a través de la identificación de variables significativas.
+
+                                💭 Esta identificación de correlaciones se utiliza para determinar el grado de similitud (relevancia/irrelevancia) de los valores de dos variables numéricas.
+
+                                💭 Existe correlación entre 2 variables (X,Y) si al aumentar los valores de X también los hacen de Y, o viceversa.
+
+                                🧠 **Coeficiente de correlación de Pearson (r)**
+
+                                    💭 Cuanto más cerca está R de 1 o -1, más fuerte es la correlación.
+
+                                    💭 Si R es cercano a -1 las variables están correlacionadas negativamente.
+
+                                    💭 Si R es 0, no hay correlación.
+
+                                🧠 **Intervalos utilizados para la identificación de correlaciones**
+
+                                    🔴 De -1.0 a -0.67 y 0.67 a 1.0 se conocen como correlaciones fuertes o altas. 
+
+                                    🟡 De -0.66 a -0.34 y 0.34 a 0.66 se conocen como correlaciones moderadas o medias. 
+
+                                    🔵 De -0.33 a 0.0 y 0.0 a 0.33 se conocen como correlaciones débiles o bajas.
+
+                                '''),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close-body-scroll-eda",
+                                className="ms-auto",
+                                n_clicks=0,
+                            )
+                        ),
+                    ],
+                    id="modal-body-scroll-eda",
+                    scrollable=True,
+                    is_open=False,
+                    size='xl',
+                ),
+                
                 dcc.Graph(
                     id='matriz',
                     figure={
-                        # Solo se despliega la mitad de la matriz de correlación, ya que la otra mitad es simétrica
                         'data': [
                             {'x': df.corr().columns, 'y': df.corr().columns, 'z': df.corr().values, 'type': 'heatmap', 'colorscale': 'RdBu'}
                         ],
@@ -341,7 +458,7 @@ def parse_contents(contents, filename,date):
                                     text=str(round(df.corr().values[i][j], 4)),
                                     showarrow=False,
                                     font=dict(
-                                        color='white' if abs(df.corr().values[i][j]) > 0.6 or df.corr().values[i][j] < -0.6 else 'black'
+                                        color='white' if abs(df.corr().values[i][j]) >= 0.67  else 'black'
                                     )
                                 ) for i in range(len(df.corr().columns)) for j in range(len(df.corr().columns))
                             ]
@@ -362,7 +479,55 @@ def parse_contents(contents, filename,date):
 def update_output(list_of_contents, list_of_names,list_of_dates):
     if list_of_contents is not None:
         children = [
-            parse_contents(c, n,d) for c, n,d in
+            parse_contents(c,n,d) for c,n,d in
             zip(list_of_contents, list_of_names,list_of_dates)]
         return children
+
+
+@callback(
+    Output('histograma-eda', 'figure'),
+    Input('value-histograma-eda', 'value'))
+def update_graph1(value):
+    # Conforme se van seleccionando las variables, se van agregando a la gráfica de histogramas
+    import plotly.graph_objects as go
+    fig = go.Figure()
+    for i in value:
+        fig.add_trace(go.Histogram(x=df[i], name=i))
+    fig.update_layout(
+        xaxis_title=str(value),
+        yaxis_title='Variable(s)',
+    )
+
+    return fig
+
+
+@callback(
+    Output('bigotes-eda', 'figure'),
+    Input('value-bigotes-eda', 'value'))
+def update_graph2(value):
+    # Conforme se van seleccionando las variables, se van agregando a la gráfica de bigotes
+    import plotly.graph_objects as go
+    fig = go.Figure()
+    for i in value:
+        fig.add_trace(go.Box(y=df[i], name=i, boxpoints='all'))
+    fig.update_layout(
+        yaxis_title='COUNT',
+    )
+
+    return fig
+
+
+@callback(
+    Output("modal-body-scroll-eda", "is_open"),
+    [
+        Input("open-body-scroll-eda", "n_clicks"),
+        Input("close-body-scroll-eda", "n_clicks"),
+    ],
+    [State("modal-body-scroll-eda", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
 

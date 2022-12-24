@@ -15,10 +15,22 @@ import plotly.graph_objs as go         # Para la visualización de datos basado 
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler  
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.COSMO])
+
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "danger",
+        "children": "SELECT THEME",
+        "outline": True,
+    },
+    radio_props={
+        "persistence": True,
+    },
+)
 
 tabs_styles = {
     'height': '44px'
@@ -32,13 +44,15 @@ tab_style = {
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'backgroundColor': 'Black',
     'color': 'white',
     'padding': '6px'
 }
 
+
 layout = html.Div([
-    html.H3('Árboles de Decisión 🌳 (Clasificación)'),
+    html.H1('Árboles de Decisión 🌳 (Clasificación)', style={'text-align': 'center'}),
+    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -60,7 +74,8 @@ layout = html.Div([
             'flex-direction': 'column'
         },
         # Allow multiple files to be uploaded
-        multiple=True
+        multiple=True,
+        accept='.csv, .txt, .xls, .xlsx'
     ),
     html.Div(id='output-data-upload-arboles-clasificacion'), # output-datatable
     html.Div(id='output-div'),
@@ -104,14 +119,8 @@ def parse_contents(contents, filename,date):
             row_deletable=True,
             editable=True,
             row_selectable='multi',
-
             columns=[{'name': i, 'id': i} for i in df.columns],
-            # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-            style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-            # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-            style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black', 'border': '1px solid black'},
             style_table={'height': '300px', 'overflowY': 'auto'},
-            style_data={'border': '1px solid black'}
         ),
 
         html.Hr(),  # horizontal line
@@ -149,7 +158,7 @@ def parse_contents(contents, filename,date):
                                 text=str(round(df.corr().values[i][j], 4)),
                                 showarrow=False,
                                 font=dict(
-                                    color='white' if abs(df.corr().values[i][j]) > 0.6 or df.corr().values[i][j] < -0.6 else 'black'
+                                    color='white' if abs(df.corr().values[i][j]) >= 0.67  else 'black'
                                 )
                             ) for i in range(len(df.corr().columns)) for j in range(len(df.corr().columns))
                         ]
@@ -159,44 +168,80 @@ def parse_contents(contents, filename,date):
         ]),
 
         dcc.Tabs([
-            dcc.Tab(label='Resúmen Estadístico', style=tab_style, selected_style=tab_selected_style,children=[
-                dash_table.DataTable(
-                    #Centramos la tabla de datos:
-                    data=df.describe().to_dict('records'),
-                    columns=[{'name': i, 'id': i} for i in df.describe().columns],
+            dcc.Tab(label='Resumen estadístico', style=tab_style, selected_style=tab_selected_style,children=[
+                html.Br(),
+                dbc.Table(
+                    # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max) y las demás columnas: nombre de las columnas (recorremos las columnas del dataframe)
+                                    html.Th('Estadística'),
+                                    *[html.Th(column) for column in df.describe().columns]
 
-                    style_data_conditional=[
-                        {
-                            'if': {'row_index': 'odd'},
-                            'backgroundColor': 'rgb(248, 248, 248)'
-                        }
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td('count'),
+                                        *[html.Td(df.describe().loc['count'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('mean'),
+                                        *[html.Td(df.describe().loc['mean'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('std'),
+                                        *[html.Td(df.describe().loc['std'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('min'),
+                                        *[html.Td(df.describe().loc['min'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('25%'),
+                                        *[html.Td(df.describe().loc['25%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('50%'),
+                                        *[html.Td(df.describe().loc['50%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('75%'),
+                                        *[html.Td(df.describe().loc['75%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('max'),
+                                        *[html.Td(df.describe().loc['max'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                            ]
+                        )
                     ],
-                    # Mostramos en las filas el nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max)
-                    # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-                    style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-                    # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-                    style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black'},
-                    style_table={'height': '300px', 'overflowY': 'auto'}
-                ),
 
-                # Generamos un resumen estadístico de las columnas numéricas del dataframe
-                dcc.Graph(
-                    id='resumen',
-                    figure={
-                        'data': [
-                            {'x': df.describe().columns, 'y': df.describe().loc['count'], 'type': 'bar', 'name': 'count'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['mean'], 'type': 'bar', 'name': 'Mean'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['std'], 'type': 'bar', 'name': u'STD'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['min'], 'type': 'bar', 'name': 'Min'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['25%'], 'type': 'bar', 'name': '25%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['50%'], 'type': 'bar', 'name': '50%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['75%'], 'type': 'bar', 'name': '75%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['max'], 'type': 'bar', 'name': 'Max'},
-                        ],
-                        'layout': {
-                            'title': 'Resumen estadístico'
-                        }
-                    }
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
         
@@ -233,7 +278,7 @@ def parse_contents(contents, filename,date):
             ]),
 
             dcc.Tab(label='Aplicación del algoritmo', style=tab_style, selected_style=tab_selected_style, children=[
-                dbc.Alert('Selecciona las variables predictoras', color='primary'),
+                dbc.Badge("Selecciona las variables predictoras", color="light", className="mr-1", text_color="dark"),
                     dcc.Dropdown(
                         [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
                         # Seleccionamos la segunda columna numérica del dataframe
@@ -243,7 +288,7 @@ def parse_contents(contents, filename,date):
                     ),
 
                 # Seleccionamos la variable Clase con un Dropdown
-                dbc.Alert('Selecciona la variable a clasificar', color='primary'),
+                dbc.Badge("Selecciona la variable Clase", color="light", className="mr-1", text_color="dark"),
                 dcc.Dropdown(
                     [i for i in df.columns if (df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) == 2) or df[i].dtype in ['bool'] or (df[i].dtype in ['object'] and len(df[i].unique()) == 2)],
                     # Seleccionamos por defecto la primera columna
@@ -252,33 +297,151 @@ def parse_contents(contents, filename,date):
                     multi=True,
                 ),
 
-                # Estilizamos el botón con Bootstrap
-                dbc.Button("Click para obtener la clasificación", color="primary", className="mr-1", id='submit-button-clasificacion'),
+                # Salto de línea
+                html.Br(),
+
+                html.H2(["", dbc.Badge("Calibración del algoritmo", className="ms-1")]),
+                html.Br(),
+
+                dcc.Markdown('''
+                    💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
+                    
+                    💭 **splitter**. Indica el criterio que se utilizará para dividir los nodos. Puede ser best o random. Best selecciona la mejor división mientras que random selecciona la mejor división aleatoriamente.                        
+                    
+                    💭 **max_depth**. Indica la máxima profundidad a la cual puede llegar el árbol. Esto ayuda a combatir el overfitting, pero también puede provocar underfitting.
+                    
+                    💭 **min_samples_split**. Indica la cantidad mínima de datos para que un nodo de decisión se pueda dividir. Si la cantidad no es suficiente este nodo se convierte en un nodo hoja.
+                    
+                    💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
+                '''),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Criterio:**'''),
+                        dbc.Select(
+                            id='criterion',
+                            options=[
+                                {'label': 'Gini', 'value': 'gini'},
+                                {'label': 'Entropy', 'value': 'entropy'},
+                            ],
+                            value='gini',
+                            placeholder="Selecciona el criterio",
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Splitter:**'''),
+                        dbc.Select(
+                            id='splitter',
+                            options=[
+                                {'label': 'Best', 'value': 'best'},
+                                {'label': 'Random', 'value': 'random'},
+                            ],
+                            value='best',
+                            placeholder="Selecciona el splitter",
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Max_depth:**'''),
+                        dbc.Input(
+                            id='max_depth',
+                            type='number',
+                            placeholder='None',
+                            value=None,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Min_samples_split:**'''),
+                        dbc.Input(
+                            id='min_samples_split',
+                            type='number',
+                            placeholder='Selecciona el min_samples_split',
+                            value=2,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Min_samples_leaf:**'''),
+                        dbc.Input(
+                            id='min_samples_leaf',
+                            type='number',
+                            placeholder='Selecciona el min_samples_leaf',
+                            value=1,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+                ], justify='center', align='center'),
+
+                html.Br(),
+
+                dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-clasificacion',style={'width': '100%'}),
 
                 html.Hr(),
 
                 # Mostramos la matriz de confusión
-                html.H2(["", dbc.Badge("Matriz de clasificación", className="ms-1")]),
-                dcc.Graph(id='matriz'),
+                html.Div(id='matriz'),
 
                 html.Hr(),
 
                 # Mostramos el reporte de clasificación
-                html.H2(["", dbc.Badge("Reporte de la efectividad del algoritmo y del árbol de decisión obtenido", className="ms-1")]),
                 html.Div(id='clasificacion'),
 
                 # Mostramos la importancia de las variables
-                html.H2(["", dbc.Badge("Importancia de las variables", className="ms-1")]),
                 dcc.Graph(id='importancia'),
+                # Ocultamos el gráfico de la importancia de las variables hasta que se pulse el botón
 
                 html.Hr(),
 
                 html.H2(["", dbc.Badge("Curva ROC", className="ms-1")]),
                 dcc.Graph(id='roc-arbol-clasificacion'),
 
-                # Imprimimos el árbol de decisión
-                html.H2(["", dbc.Badge("Árbol de decisión obtenido", className="ms-1")]),
-                html.Div(id='arbol'),
+
+                dbc.Button(
+                    "Haz click para visualizar el árbol de decisión obtenido", id="open-body-scroll-ADC", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
+                ),
+
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("Árbol de Decisión obtenido")),
+                        dbc.ModalBody(
+                            [
+                                html.Div(id='arbol'),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close-body-scroll-ADC",
+                                className="ms-auto",
+                                n_clicks=0,
+                            )
+                        ),
+                    ],
+                    id="modal-body-scroll-ADC",
+                    scrollable=True,
+                    is_open=False,
+                    size='xl',
+                ),
+            ]),
+
+            dcc.Tab(label='Nuevas Clasificaciones', style=tab_style, selected_style=tab_selected_style, children=[
+                html.H2(["", dbc.Badge("Introduce los datos de las nuevas clasificaciones", className="ms-1")]),
+                html.Hr(),
+                html.Div(id='output-clasificacion-arbol-decision'),
+                html.Hr(),
+                html.Div(id='valor-clasificacion-arbol-decision'),
+                html.Div(id='valor-clasificacion-arbol-decision2'),
+                
             ]),
         ])
     ]) #Fin del layout
@@ -312,16 +475,25 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
     return fig
 
 @callback(
-    Output('matriz', 'figure'),
+    Output('matriz', 'children'),
     Output('clasificacion', 'children'),
     Output('importancia', 'figure'),
     Output('roc-arbol-clasificacion', 'figure'),
     Output('arbol', 'children'),
+    Output('output-clasificacion-arbol-decision', 'children'),
+    Output('valor-clasificacion-arbol-decision', 'children'),
     Input('submit-button-clasificacion','n_clicks'),
     State('X_Clase', 'value'),
-    State('Y_Clase', 'value'))
-def clasificacion(n_clicks, X_Clase, Y_Clase):
+    State('Y_Clase', 'value'),
+    State('criterion', 'value'),
+    State('splitter', 'value'),
+    State('max_depth', 'value'),
+    State('min_samples_split', 'value'),
+    State('min_samples_leaf', 'value'),
+    State(ThemeChangerAIO.ids.radio("theme"), 'value'))
+def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_samples_split, min_samples_leaf, theme):
     if n_clicks is not None:
+        global ClasificacionAD
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
         from sklearn.tree import DecisionTreeClassifier
@@ -334,7 +506,12 @@ def clasificacion(n_clicks, X_Clase, Y_Clase):
                                                                                         shuffle = True)
 
         #Se entrena el modelo a partir de los datos de entrada
-        ClasificacionAD = DecisionTreeClassifier(random_state = 0)
+        ClasificacionAD = DecisionTreeClassifier(criterion = criterion,
+                                                splitter = splitter,
+                                                max_depth = max_depth,
+                                                min_samples_split = min_samples_split,
+                                                min_samples_leaf = min_samples_leaf,
+                                                random_state = 0)
         ClasificacionAD.fit(X_train, Y_train)
 
         #Se etiquetan las clasificaciones
@@ -350,45 +527,29 @@ def clasificacion(n_clicks, X_Clase, Y_Clase):
                                         ModeloClasificacion1, 
                                         rownames=['Reales'], 
                                         colnames=['Clasificación'])
-        
 
-        import plotly.figure_factory as ff
-        #Matriz de clasificación en plotly
-        fig = ff.create_annotated_heatmap(z=Matriz_Clasificacion1.values, x=list(Matriz_Clasificacion1.columns), y=list(Matriz_Clasificacion1.index), colorscale='Viridis')
-        fig.update_layout(title_x=0.5, xaxis_title="Clasificación", yaxis_title="Real", font=dict(family="Courier New, monospace", size=18, color="black"))
-        fig.update_layout(
-            autosize=True,
-            margin=dict(
-                l=50,
-                r=50,
-                b=100,
-                t=100,
-                pad=4
-            ),
-            paper_bgcolor="LightSteelBlue",
-        )
+        VP = Matriz_Clasificacion1.iloc[0,0]
+        FP = Matriz_Clasificacion1.iloc[1,0]
+        FN = Matriz_Clasificacion1.iloc[0,1]
+        VN = Matriz_Clasificacion1.iloc[1,1]
 
         criterio = ClasificacionAD.criterion
+        splitter_report = ClasificacionAD.splitter
         profundidad = ClasificacionAD.get_depth()
         hojas = ClasificacionAD.get_n_leaves()
         nodos = ClasificacionAD.get_n_leaves() + ClasificacionAD.get_depth()
-        precision = classification_report(Y_validation, Y_Clasificacion).split()[10]
         tasa_error = 1-ClasificacionAD.score(X_validation, Y_validation)
-        sensibilidad = classification_report(Y_validation, Y_Clasificacion).split()[11]
-        especificidad = classification_report(Y_validation, Y_Clasificacion).split()[6]
-    
-        #print('Importancia variables: \n', ClasificacionAD.feature_importances_)
-        # reporte = classification_report(Y_validation, Y_Clasificacion)
 
         # Importancia de las variables
         importancia = pd.DataFrame({'Variable': list(df[X_Clase].columns),
                             'Importancia': ClasificacionAD.feature_importances_}).sort_values('Importancia', ascending=False)
 
         # Graficamos la importancia de las variables
-        fig2 = px.bar(importancia, x='Variable', y='Importancia', color='Importancia', color_continuous_scale='Bluered')
+        fig2 = px.bar(importancia, x='Variable', y='Importancia', color='Importancia', color_continuous_scale='Bluered', text='Importancia')
         fig2.update_layout(title_text='Importancia de las variables', xaxis_title="Variables", yaxis_title="Importancia")
-        fig2.update_traces(texttemplate=(importancia['Importancia'].values).round(4), textposition='outside')
-
+        fig2.update_traces(texttemplate='%{text:.2}', textposition='outside')
+        fig2.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+        fig2.update_layout(legend_title_text='Importancia de las variables')
 
         #CURVA ROC
         Y_validation2 = pd.DataFrame(Y_validation) # Convertimos los valores de la variable Y_validation a un dataframe
@@ -415,25 +576,198 @@ def clasificacion(n_clicks, X_Clase, Y_Clase):
         from sklearn.tree import export_text
         r = export_text(ClasificacionAD, feature_names=list(df[X_Clase].columns))
         
-        return fig, html.Div([
-            # En tres columnas
+        return html.Div([
+            html.H2(["", dbc.Badge("Matriz de clasificación", className="ms-1")]),
             dbc.Row([
                 dbc.Col([
-                    dbc.Alert('Exactitud: ' + str(round(exactitud*100,2)) + '%', color="success"),
-                    dbc.Alert('Criterio: ' + criterio, color="info"),
-                    dbc.Alert('Profundidad: ' + str(profundidad), color="info"),
+                    dbc.Alert('Verdaderos Positivos (VP): ' + str(VP), color="info"),
+                    dbc.Alert('Falsos Positivos (FP): ' + str(FP), color="info"),
                 ], width=4),
                 dbc.Col([
-                    dbc.Alert('Hojas: ' + str(hojas), color="info"),
-                    dbc.Alert('Nodos: ' + str(nodos), color="info"),
-                    dbc.Alert('Precisión: ' + str(round(float(precision)*100,2)) + '%', color="info"),
+                    dbc.Alert('Falsos Negativos (FN): ' + str(FN), color="info"),
+                    dbc.Alert('Verdaderos Negativos (VN): ' + str(VN), color="info"),
                 ], width=4),
+                ], justify="center"),
+
+        ]), html.Div([
+            html.H2(["", dbc.Badge("Reporte del árbol de decisión obtenido", className="ms-1")]),
+            dbc.Table(
+                [
+                    html.Thead(
+                        html.Tr(
+                            [
+                                html.Th("Criterion"),
+                                html.Th("Splitter"),
+                                html.Th("Profundidad"),
+                                html.Th("Max_depth"),
+                                html.Th("Min_samples_split"),
+                                html.Th("Min_samples_leaf"),
+                                html.Th("Nodos"),
+                                html.Th("Hojas"),
+                            ]
+                        )
+                    ),
+                    html.Tbody(
+                        [
+                            html.Tr(
+                                [
+                                    html.Td(criterio),
+                                    html.Td(splitter_report),
+                                    html.Td(profundidad),
+                                    html.Td(str(max_depth)),
+                                    html.Td(min_samples_split),
+                                    html.Td(min_samples_leaf),
+                                    html.Td(nodos),
+                                    html.Td(ClasificacionAD.get_n_leaves()),
+                                ]
+                            ),
+                        ]
+                    ),
+                ],
+                bordered=True,
+                hover=True,
+                responsive=True,
+                striped=True,
+                style={'width': '100%', 'text-align': 'center'},
+                class_name='table table-hover table-bordered table-striped',
+            ),
+
+            html.H2(["", dbc.Badge("Reporte de la efectividad del algoritmo obtenido", className="ms-1")]),
+            dbc.Table(
+                [
+                    html.Thead(
+                        html.Tr(
+                            [
+                                html.Th("Reporte de clasificación"),
+                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Y_Clasificacion).split()[4])),
+                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Y_Clasificacion).split()[9])),
+                            ]
+                        )
+                    ),
+                    html.Tbody(
+                        [
+                            html.Tr(
+                                [
+                                    html.Td("Exactitud (Accuracy): " + str(round(exactitud*100,2)) + '%', style={'color': 'green'}),
+                                    html.Td("Precisión: " + str(round(float(VP/(VP+FP))*100,5)) + '%'),
+                                    html.Td("Precisión: " + str(round(float(VN/(VN+FN))*100,5)) + '%'),
+                                ]
+                            ),
+                            html.Tr(
+                                [
+                                    html.Td("Tasa de error (Misclassification Rate): " + str(round(tasa_error*100,2)) + '%', style={'color': 'red'}),
+                                    html.Td("Sensibilidad (Recall, Sensitivity, True Positive Rate): " + str(round(float(VP/(VP+FN))*100,5)) + '%'),
+                                    html.Td("Sensibilidad (Recall, Sensitivity, True Positive Rate): " + str(round(float(VN/(VN+FP))*100,5)) + '%'),
+                                ]
+                            ),
+                            html.Tr(
+                                [
+                                    html.Td("Valores Verdaderos: " + str((Y_validation == Y_Clasificacion).sum()), style={'color': 'green'}),
+                                    html.Td("Especificidad (Specificity, True Negative Rate): " + str(round(float(VN/(VN+FP))*100,5)) + '%'),
+                                    html.Td("Especificidad (Specificity, True Negative Rate): " + str(round(float(VP/(VP+FN))*100,5)) + '%'),
+                                ]
+                            ),
+                            html.Tr(
+                                [
+                                    html.Td("Valores Falsos: " + str((Y_validation != Y_Clasificacion).sum()), style={'color': 'red'}),
+                                    html.Td("F1-Score: " + str(round(float(2*VP/(2*VP+FP+FN))*100,5)) + '%'),
+                                    html.Td("F1-Score: " + str(round(float(2*VN/(2*VN+FN+FP))*100,5)) + '%'),
+                                ]
+                            ),
+                            html.Tr(
+                                [
+                                    html.Td("Valores Totales: " + str(Y_validation.size)),
+                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Y_Clasificacion).split()[8])),
+                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Y_Clasificacion).split()[13])),
+                                ]
+                            ),
+                        ]
+                    ),
+                ],
+                bordered=True,
+                hover=True,
+                responsive=True,
+                striped=True,
+                style={'width': '100%', 'text-align': 'center'},
+            ),
+
+            html.H2(["", dbc.Badge("Importancia de las variables", className="ms-1")]),
+        ]), fig2, fig3, dbc.Alert(r, color="success", style={'whiteSpace': 'pre-line'}, className="mb-3"), html.Div([
+            dbc.Row([
                 dbc.Col([
-                    dbc.Alert('Tasa de error: ' + str(round(tasa_error*100,2)) + '%', color="info"),
-                    dbc.Alert('Sensibilidad: ' + str(round(float(sensibilidad)*100,2)) + '%', color="info"),
-                    dbc.Alert('Especificidad: ' + str(round(float(especificidad)*100,2)) + '%', color="info"),
-                ], width=4),
-            ]),
-        ]), fig2, fig3, html.Div([
-            dbc.Alert(r, color="success", style={'whiteSpace': 'pre-line'}, className="mb-3")
+                    dbc.Input(id='values_X1_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[0],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[0])),
+                    dbc.Input(id='values_X2_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[1],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[1])),
+                    dbc.Input(id='values_X3_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[2],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[2])),
+                    dbc.Input(id='values_X4_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[3])),
+                    dbc.Input(id='values_X5_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[4])),
+                    dbc.Input(id='values_X6_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[5],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[5])),
+                    dbc.Input(id='values_X7_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[6],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[6])),
+                    dbc.Input(id='values_X8_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[7],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[7])),
+                ], width=6),
+            ])
+
+        ]), html.Div([
+                dbc.Button("Mostrar valores reales y pronosticados", id="collapse-button", className="mb-3", color="primary"),
+                dbc.Collapse(
+                    dbc.Card(dbc.CardBody([
+                        html.Div(id='output-container-button'),
+                    ])),
+                    id="collapse",
+                ),
         ])
+
+    elif n_clicks is None:
+        import dash.exceptions as de
+        raise de.PreventUpdate
+
+
+@callback(
+    Output('valor-clasificacion-arbol-decision2', 'children'),
+    Input('collapse-button', 'n_clicks'),
+    State('values_X1_AD_Clasificacion', 'value'),
+    State('values_X2_AD_Clasificacion', 'value'),
+    State('values_X3_AD_Clasificacion', 'value'),
+    State('values_X4_AD_Clasificacion', 'value'),
+    State('values_X5_AD_Clasificacion', 'value'),
+    State('values_X6_AD_Clasificacion', 'value'),
+    State('values_X7_AD_Clasificacion', 'value'),
+    State('values_X8_AD_Clasificacion', 'value'),
+)
+def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8):
+    if n_clicks is not None:
+        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None:
+            return html.Div([
+                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
+            ])
+        else:
+            # Convertimos el arreglo a un DataFrame
+            values_X = np.array([values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8])
+            
+            XPredict = pd.DataFrame(values_X)
+
+            clasiFinal = ClasificacionAD.predict(XPredict)[0]
+            return html.Div([
+                dbc.Alert('Valor pronosticado: ' + str(clasiFinal), color="success")
+            ])
+
+
+@callback(
+    Output("modal-body-scroll-ADC", "is_open"),
+    [
+        Input("open-body-scroll-ADC", "n_clicks"),
+        Input("close-body-scroll-ADC", "n_clicks"),
+    ],
+    [State("modal-body-scroll-ADC", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open

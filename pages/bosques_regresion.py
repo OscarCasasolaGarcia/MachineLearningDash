@@ -15,6 +15,7 @@ import plotly.graph_objs as go         # Para la visualización de datos basado 
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler  
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -32,13 +33,25 @@ tab_style = {
 tab_selected_style = {
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
-    'backgroundColor': '#119DFF',
+    'backgroundColor': 'Black',
     'color': 'white',
     'padding': '6px'
 }
 
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "danger",
+        "children": "SELECT THEME",
+        "outline": True,
+    },
+    radio_props={
+        "persistence": True,
+    },
+)
+
 layout = html.Div([
-    html.H3('Bosques aleatorios 🌳 (Regresión)'),
+    html.H1('Bosques Aleatorios 🌳🌲🌳 (Regresión)📈', style={'text-align': 'center'}),
+    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -60,7 +73,8 @@ layout = html.Div([
             'flex-direction': 'column'
         },
         # Allow multiple files to be uploaded
-        multiple=True
+        multiple=True,
+        accept='.csv, .txt, .xls, .xlsx'
     ),
     html.Div(id='output-data-upload-bosques-regresion'), # output-datatable
     html.Div(id='output-div'),
@@ -149,7 +163,7 @@ def parse_contents(contents, filename,date):
                                 text=str(round(df.corr().values[i][j], 4)),
                                 showarrow=False,
                                 font=dict(
-                                    color='white' if abs(df.corr().values[i][j]) > 0.6 or df.corr().values[i][j] < -0.6 else 'black'
+                                    color='white' if abs(df.corr().values[i][j]) >= 0.67  else 'black'
                                 )
                             ) for i in range(len(df.corr().columns)) for j in range(len(df.corr().columns))
                         ]
@@ -160,76 +174,121 @@ def parse_contents(contents, filename,date):
 
         dcc.Tabs([
             dcc.Tab(label='Resúmen Estadístico', style=tab_style, selected_style=tab_selected_style,children=[
-                dash_table.DataTable(
-                    #Centramos la tabla de datos:
-                    data=df.describe().to_dict('records'),
-                    columns=[{'name': i, 'id': i} for i in df.describe().columns],
+                html.Br(),
+                dbc.Table(
+                    # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max) y las demás columnas: nombre de las columnas (recorremos las columnas del dataframe)
+                                    html.Th('Estadística'),
+                                    *[html.Th(column) for column in df.describe().columns]
 
-                    style_data_conditional=[
-                        {
-                            'if': {'row_index': 'odd'},
-                            'backgroundColor': 'rgb(248, 248, 248)'
-                        }
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        # Recorremos el for para mostrar el nombre de la estadística a la izquierda de cada fila
+                                        html.Td('count'),
+                                        *[html.Td(df.describe().loc['count'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('mean'),
+                                        *[html.Td(df.describe().loc['mean'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('std'),
+                                        *[html.Td(df.describe().loc['std'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('min'),
+                                        *[html.Td(df.describe().loc['min'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('25%'),
+                                        *[html.Td(df.describe().loc['25%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('50%'),
+                                        *[html.Td(df.describe().loc['50%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('75%'),
+                                        *[html.Td(df.describe().loc['75%'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                                html.Tr(
+                                    [
+                                        html.Td('max'),
+                                        *[html.Td(df.describe().loc['max'][column]) for column in df.describe().columns]
+                                    ]
+                                ),
+                            ]
+                        )
                     ],
-                    # Mostramos en las filas el nombre de la estadística (count, mean, std, min, 25%, 50%, 75%, max)
-                    # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-                    style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-                    # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-                    style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black'},
-                    style_table={'height': '300px', 'overflowY': 'auto'}
-                ),
 
-                # Generamos un resumen estadístico de las columnas numéricas del dataframe
-                dcc.Graph(
-                    id='resumen',
-                    figure={
-                        'data': [
-                            {'x': df.describe().columns, 'y': df.describe().loc['count'], 'type': 'bar', 'name': 'count'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['mean'], 'type': 'bar', 'name': 'Mean'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['std'], 'type': 'bar', 'name': u'STD'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['min'], 'type': 'bar', 'name': 'Min'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['25%'], 'type': 'bar', 'name': '25%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['50%'], 'type': 'bar', 'name': '50%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['75%'], 'type': 'bar', 'name': '75%'},
-                            {'x': df.describe().columns, 'y': df.describe().loc['max'], 'type': 'bar', 'name': 'Max'},
-                        ],
-                        'layout': {
-                            'title': 'Resumen estadístico'
-                        }
-                    }
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
         
             dcc.Tab(label='Distribución de Datos', style=tab_style, selected_style=tab_selected_style,children=[
-                html.Div([
-                    dcc.Dropdown(
-                        df.columns,
-                        # Selecionamos por defecto la primera columna
-                        value=df.columns[0],
-                        id='xaxis_column-bosque-regresion',
-                    ),
-                    dcc.Dropdown(
-                        [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
-                        # Seleccionamos por defecto todas las columnas numéricas, a partir de la segunda
-                        value=[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2][1:3],
-                        id='yaxis_column-bosque-regresion',
-                        multi=True
-                    ),
+                html.Br(),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Badge("Selecciona la variable X", color="light", className="mr-1", text_color="dark"),
+                        dbc.Select(
+                            options=[{'label': i, 'value': i} for i in df.columns],
+                            # Selecionamos por defecto la primera columna
+                            value=df.columns[0],
+                            id='xaxis_column-bosque-regresion',
+                            style={'width': '100%', 'className': 'mr-1'}
+                        ),
+                    ]),
+                    dbc.Col([
+                        dbc.Badge("Selecciona la variable Y", color="light", className="mr-1", text_color="dark"),
+                        dcc.Dropdown(
+                            [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                            # Seleccionamos por defecto todas las columnas numéricas, a partir de la segunda
+                            value=[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2][1:3],
+                            id='yaxis_column-bosque-regresion',
+                            multi=True
+                        ),
+                    ]),
 
                     dcc.Graph(id='indicator_graphic_bosque_regression')
                 ]),
             ]),
 
             dcc.Tab(label='Aplicación del algoritmo', style=tab_style, selected_style=tab_selected_style, children=[
-                # Seleccionamos la variable Clase con un Dropdown
-                dbc.Alert('Selecciona la variable a Pronosticar', color='primary'),
-                dcc.Dropdown(
-                    [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                dbc.Badge("Selecciona la variable a predecir", color="light", className="mr-1", text_color="dark"),
+                dbc.Select(
+                    options=[{'label': i, 'value': i} for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
                     value=df[[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2]].columns[0],
                     id='Y_Clase_Bosque_Regresion',
+                    style={'width': '100%', 'className': 'mr-1'}
                 ),
                 
-                dbc.Alert('Selecciona las variables predictoras', color='primary'),
+                dbc.Badge("Selecciona las variables predictoras", color="light", className="mr-1", text_color="dark"),
                 dcc.Dropdown(
                     # En las opciones que aparezcan en el Dropdown, queremos que aparezcan todas las columnas numéricas, excepto la columna Clase
                     [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
@@ -238,9 +297,174 @@ def parse_contents(contents, filename,date):
                     multi=True,
                 ),
 
+                html.Br(),
 
-                # Estilizamos el botón con Bootstrap
-                dbc.Button("Click para obtener la clasificación", color="primary", className="mr-1", id='submit-button-bosque-regresion'),
+                html.H2(["", dbc.Badge("Calibración del algoritmo", className="ms-1")]),
+                html.Br(),
+
+                dbc.Button(
+                    "Haz click para obtener información adicional acerca de los parámetros del algoritmo", id="open-body-scroll-info-BAR", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
+                ),
+                html.Hr(),
+
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("Información sobre los parámetros del algoritmo")),
+                        dbc.ModalBody(
+                            [
+                                dcc.Markdown('''
+                                    🌲🌳 Ajustes para el Bosque Aleatorio 🌳🌲
+                                        
+                                    💭 **n_estimators**. Indica el número de árboles que va a tener el bosque aleatorio. Normalmente, cuantos más árboles es mejor, pero a partir de cierto punto deja de mejorar y se vuelve más lento. El valor por defecto es 100 árboles.
+
+                                    💭 **n_jobs**. Es el número de núcleos que se pueden usar para entrenar los árboles. Cada árbol es independiente del resto, así que entrenar un bosque aleatorio es una tarea paralelizable. Por defecto se utiliza 1 core de la CPU. Si se usa n_jobs = -1, se indica que se quiere usar tantos cores como tenga el equipo de cómputo.
+
+                                    💭 **max_features**. Para garantizar que los árboles sean diferentes, éstas se entrenan con una muestra aleatoria de datos. Si se quiere que sean más diferentes, se puede hacer que distintos árboles usen distintos atributos. Esto puede ser útil especialmente cuando algunas variables están relacionadas entre sí.
+                                    
+                                    🌳 Ajustes para los Árboles de Decisión 🌳
+                                    
+                                    💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
+                                    
+                                    💭 **max_depth**. Indica la máxima profundidad a la cual puede llegar el árbol. Esto ayuda a combatir el overfitting, pero también puede provocar underfitting.
+                                    
+                                    💭 **min_samples_split**. Indica la cantidad mínima de datos para que un nodo de decisión se pueda dividir. Si la cantidad no es suficiente este nodo se convierte en un nodo hoja.
+                                    
+                                    💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
+
+                                    💭 **max_leaf_nodes**. Indica el número máximo de nodos finales.
+                                '''),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close-body-scroll-info-BAR",
+                                className="ms-auto",
+                                n_clicks=0,
+                            )
+                        ),
+                    ],
+                    id="modal-body-scroll-info-BAR",
+                    scrollable=True,
+                    is_open=False,
+                    size='xl',
+                ),
+
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Criterio:**'''),
+                        dbc.Select(
+                            id='criterion_BAR',
+                            options=[
+                                {'label': 'Squared Error', 'value': 'squared_error'},
+                                {'label': 'Friedman MSE', 'value': 'friedman_mse'},
+                                {'label': 'Absolute Error', 'value': 'absolute_error'},
+                                {'label': 'Poisson', 'value': 'poisson'},
+                            ],
+                            value='squared_error',
+                            placeholder="Selecciona el criterio",
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**n_estimators:**'''),
+                        dbc.Input(
+                            id='n_estimators_BAR',
+                            type='number',
+                            placeholder='Ingresa el número de árboles',
+                            value=100,
+                            min=1,
+                            max=1000,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**n_jobs:**'''),
+                        dbc.Input(
+                            id='n_jobs_BAR',
+                            type='number',
+                            placeholder='None',
+                            value=None,
+                            min=-1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+
+                    dbc.Col([
+                        dcc.Markdown('''**max_features:**'''),
+                        dbc.Select(
+                            id='max_features_BAR',
+                            options=[
+                                {'label': 'Auto', 'value': 'auto'},
+                                {'label': 'sqrt', 'value': 'sqrt'},
+                                {'label': 'log2', 'value': 'log2'},
+                            ],
+                            value='auto',
+                            placeholder="Selecciona una opción",
+                        ),
+                    ], width=2, align='center'),
+
+                    
+                    dbc.Col([
+                        dcc.Markdown('''**Max_depth:**'''),
+                        dbc.Input(
+                            id='max_depth_BAR',
+                            type='number',
+                            placeholder='None',
+                            value=None,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Min_samples_split:**'''),
+                        dbc.Input(
+                            id='min_samples_split_BAR',
+                            type='number',
+                            placeholder='Selecciona el min_samples_split',
+                            value=2,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**Min_samples_leaf:**'''),
+                        dbc.Input(
+                            id='min_samples_leaf_BAR',
+                            type='number',
+                            placeholder='Selecciona el min_samples_leaf',
+                            value=1,
+                            min=1,
+                            max=100,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+
+                    dbc.Col([
+                        dcc.Markdown('''**max_leaf_nodes:**'''),
+                        dbc.Input(
+                            id='max_leaf_nodes_BAR',
+                            type='number',
+                            placeholder='None',
+                            value=None,
+                            min=1,
+                            max=1000,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+            
+                ], justify='center', align='center'),
+
+
+                dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-bosque-regresion', style={'width': '100%'}),
 
                 html.Hr(),
 
@@ -280,13 +504,6 @@ def update_output(list_of_contents, list_of_names,list_of_dates):
     Input('xaxis_column-bosque-regresion', 'value'),
     Input('yaxis_column-bosque-regresion', 'value'))
 def update_graph2(xaxis_column2, yaxis_column2):
-    # fig = px.line(df, x=xaxis_column2, y=yaxis_column2, title='Gráfica', color_discrete_sequence=['green'])
-    # #fig.update_traces(mode='markers+lines') #Agregamos puntos a la gráfica
-
-    # fig.update_layout(xaxis_rangeslider_visible=True,showlegend=True, xaxis_title=xaxis_column2, yaxis_title=yaxis_column2,
-    #                 font=dict(family="Courier New, monospace", size=18, color="black"))
-    # fig.update_traces(mode='markers+lines')
-
     # Conforme se van seleccionando las variables, se van agregando a la gráfica de líneas
     fig = go.Figure()
     for i in yaxis_column2:
@@ -304,8 +521,17 @@ def update_graph2(xaxis_column2, yaxis_column2):
     Output('arbol-bosque-regresion', 'children'),
     Input('submit-button-bosque-regresion', 'n_clicks'),
     State('X_Clase_Bosque_Regresion', 'value'),
-    State('Y_Clase_Bosque_Regresion', 'value'))
-def regresion(n_clicks, X_Clase, Y_Clase):
+    State('Y_Clase_Bosque_Regresion', 'value'),
+    State('criterion_BAR', 'value'),
+    State('n_estimators_BAR', 'value'),
+    State('n_jobs_BAR', 'value'),
+    State('max_features_BAR', 'value'),
+    State('max_depth_BAR', 'value'),
+    State('min_samples_split_BAR', 'value'),
+    State('min_samples_leaf_BAR', 'value'),
+    State('max_leaf_nodes_BAR', 'value'),
+    )
+def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_features, max_depth, min_samples_split, min_samples_leaf, max_leaf_nodes):
     if n_clicks is not None:
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
@@ -317,12 +543,12 @@ def regresion(n_clicks, X_Clase, Y_Clase):
         from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
         X_train, X_test, Y_train, Y_test = model_selection.train_test_split(X, Y, 
-                                                                                        test_size = 0.2, 
-                                                                                        random_state = 0,
-                                                                                        shuffle = True)
+                                                                                test_size = 0.2, 
+                                                                                random_state = 0,
+                                                                                shuffle = True)
 
         #Se entrena el modelo a partir de los datos de entrada
-        PronosticoBA = RandomForestRegressor(random_state=0)
+        PronosticoBA = RandomForestRegressor(criterion=criterion, n_estimators=n_estimators, n_jobs=n_jobs, max_features=max_features, max_depth=max_depth, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf, max_leaf_nodes=max_leaf_nodes, random_state=0)
         PronosticoBA.fit(X_train, Y_train)
 
         #Se genera el pronóstico
@@ -355,18 +581,17 @@ def regresion(n_clicks, X_Clase, Y_Clase):
         # Score
         ScoreArbol = r2_score(Y_test, Y_PronosticoBosque)
         
-    
-        #print('Importancia variables: \n', PronosticoBA.feature_importances_)
-        # reporte = classification_report(Y_validation, Y_Clasificacion)
 
         # Importancia de las variables
         importancia = pd.DataFrame({'Variable': list(df[X_Clase].columns),
                             'Importancia': PronosticoBA.feature_importances_}).sort_values('Importancia', ascending=False)
 
         # Graficamos la importancia de las variables
-        fig2 = px.bar(importancia, x='Variable', y='Importancia', color='Importancia', color_continuous_scale='Bluered')
+        fig2 = px.bar(importancia, x='Variable', y='Importancia', color='Importancia', color_continuous_scale='Bluered', text='Importancia')
         fig2.update_layout(title_text='Importancia de las variables', xaxis_title="Variables", yaxis_title="Importancia")
-        fig2.update_traces(texttemplate=(importancia['Importancia'].values).round(4), textposition='outside')
+        fig2.update_traces(texttemplate='%{text:.2}', textposition='outside')
+        fig2.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
+        fig2.update_layout(legend_title_text='Importancia de las variables')
 
         # Generamos en texto el árbol de decisión
         Estimador = PronosticoBA.estimators_[1] # Se debe poder modificar
@@ -374,29 +599,63 @@ def regresion(n_clicks, X_Clase, Y_Clase):
         r = export_text(Estimador, feature_names=list(df[X_Clase].columns))
         
         return fig, html.Div([
-            # En tres columnas mostramos los resultados:
-            dbc.Row([
-                dbc.Col([
-                    dbc.Alert('Score: ' + str(ScoreArbol), color="success"),
-                    dbc.Alert('Criterio: ' + str(criterio), color="info"),
-                ], width=4),
-                dbc.Col([
-                    dbc.Alert('MAE: ' + str(MAEArbol), color="info"),
-                    dbc.Alert('MSE: ' + str(MSEArbol), color="info"),
-                    dbc.Alert('RMSE: ' + str(RMSEArbol), color="info"),
-                ], width=4),
-
-                # dbc.Col([
-                #     dbc.Alert('Nodos: ' + str(nodos), color="info"),
-                #     dbc.Alert('Hojas: ' + str(hojas), color="info"),
-                #     dbc.Alert('Profundidad: ' + str(profundidad), color="info"),
-                # ], width=4),
-            ]),
+            html.H2(["", dbc.Badge("Reporte de la efectividad del algoritmo y del Bosque obtenido", className="ms-1")]),
+            dbc.Table(
+                [
+                    html.Thead(
+                        html.Tr(
+                            [
+                                html.Th("Score"),
+                                html.Th("MAE"),
+                                html.Th("MSE"),
+                                html.Th("RMSE"),
+                                html.Th("Criterion"),
+                                html.Th("n_estimators"),
+                                html.Th("n_jobs"),
+                                html.Th("max_features"),
+                                html.Th("Max_depth"),
+                                html.Th("Min_samples_split"),
+                                html.Th("Min_samples_leaf"),
+                                html.Th("Max_leaf_nodes"),
+                            ]
+                        )
+                    ),
+                    html.Tbody(
+                        [
+                            html.Tr(
+                                [
+                                    html.Td(str(round(ScoreArbol, 6)*100) + '%', style={'color': 'green'}),
+                                    html.Td(str(round(MAEArbol, 6))),
+                                    html.Td(str(round(MSEArbol, 6))),
+                                    html.Td(str(round(RMSEArbol, 6))),
+                                    html.Td(criterio),
+                                    html.Td(str(n_estimators)),
+                                    html.Td(str(n_jobs)),
+                                    html.Td(str(max_features)),
+                                    html.Td(str(max_depth)),
+                                    html.Td(min_samples_split),
+                                    html.Td(min_samples_leaf),
+                                    html.Td(str(max_leaf_nodes)),
+                                ]
+                            ),
+                        ]
+                    ),
+                ],
+                bordered=True,
+                hover=True,
+                responsive=True,
+                striped=True,
+                style={'width': '100%', 'text-align': 'center'},
+                class_name='table table-hover table-bordered table-striped',
+            ),
             
         ]), fig2, html.Div([
             dbc.Alert(r, color="success", style={'whiteSpace': 'pre-line'}, className="mb-3")
         ])
-
+    
+    elif n_clicks is None:
+        import dash.exceptions as de
+        raise de.PreventUpdate
 
 # make sure that x and y values can't be the same variable
 def filter_options(v):
@@ -413,3 +672,17 @@ callback(Output("X_Clase_Bosque_Regresion", "options"), [Input("Y_Clase_Bosque_R
 callback(Output("Y_Clase_Bosque_Regresion", "options"), [Input("X_Clase_Bosque_Regresion", "value")])(
     filter_options
 )
+
+
+@callback(
+    Output("modal-body-scroll-info-BAR", "is_open"),
+    [
+        Input("open-body-scroll-info-BAR", "n_clicks"),
+        Input("close-body-scroll-info-BAR", "n_clicks"),
+    ],
+    [State("modal-body-scroll-info-BAR", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
