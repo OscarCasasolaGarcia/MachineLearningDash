@@ -19,8 +19,6 @@ SIDEBAR_STYLE = {
     "background-color": "#f8f9fa",
 }
 
-# the styles for the main content position it to the right of the sidebar and
-# add some padding.
 CONTENT_STYLE = {
     "margin-left": "1rem",
     "margin-right": "1rem",
@@ -32,7 +30,6 @@ navbar = dbc.NavbarSimple(
         dbc.NavItem(dbc.NavLink("Home", href="/")),
         dbc.NavItem(dbc.NavLink("EDA📊", href="/eda")),
         dbc.NavItem(dbc.NavLink("ACP💻", href="/acp")),
-        # Dropdown menu
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Árboles de Decisión (Clasificación)🔴🔵", href="/arboles_clasificacion"),
@@ -56,6 +53,7 @@ navbar = dbc.NavbarSimple(
     brand_href="/",
     color="black",
     dark=True,
+    sticky="top",
 )
 
 content = html.Div(id="page-content", style=CONTENT_STYLE)
@@ -79,7 +77,6 @@ def render_page_content(pathname):
     elif pathname == "/bosques_regresion":
         return bosques_regresion.layout
     
-    # If the user tries to reach a different page, return a 404 message
     return html.Div(
         [
             html.H1("404: Not found", className="text-danger"),
