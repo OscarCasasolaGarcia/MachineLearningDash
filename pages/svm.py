@@ -12,14 +12,24 @@ from dash.dependencies import Input, Output, State
 from dash import dcc, html, dash_table, Input, Output, callback
 import plotly.express as px
 import plotly.graph_objs as go         # Para la visualización de datos basado en plotly
-from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
 
-from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler  
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.COSMO])
+
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "danger",
+        "children": "SELECT THEME",
+        "outline": True,
+    },
+    radio_props={
+        "persistence": True,
+    },
+)
 
 tabs_styles = {
     'height': '44px'
@@ -38,19 +48,9 @@ tab_selected_style = {
     'padding': '6px'
 }
 
-theme_change = ThemeChangerAIO(
-    aio_id="theme",button_props={
-        "color": "danger",
-        "children": "SELECT THEME",
-        "outline": True,
-    },
-    radio_props={
-        "persistence": True,
-    },
-)
 
 layout = html.Div([
-    html.H1('Bosques Aleatorios 🌳🌲🌳 (Clasificación)', style={'text-align': 'center'}),
+    html.H1('Support Vectors Machine (SVM)🔵🟡', style={'text-align': 'center'}),
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -70,11 +70,10 @@ layout = html.Div([
             'align-items': 'center',
             'flex-direction': 'column'
         },
-        # Allow multiple files to be uploaded
         multiple=True,
         accept='.csv, .txt, .xls, .xlsx'
     ),
-    html.Div(id='output-data-upload-bosques-clasificacion'),
+    html.Div(id='output-data-upload-svm'), # output-datatable
     html.Div(id='output-div'),
 ])
 
@@ -116,14 +115,8 @@ def parse_contents(contents, filename,date):
             row_deletable=True,
             editable=True,
             row_selectable='multi',
-
             columns=[{'name': i, 'id': i} for i in df.columns],
-            # Al estilo de la celda le ponemos: texto centrado, con fondos oscuros y letras blancas
-            style_cell={'textAlign': 'center', 'backgroundColor': 'rgb(207, 250, 255)', 'color': 'black'},
-            # Al estilo de la cabecera le ponemos: texto centrado, con fondo azul claro y letras negras
-            style_header={'backgroundColor': 'rgb(45, 93, 255)', 'fontWeight': 'bold', 'color': 'black', 'border': '1px solid black'},
             style_table={'height': '300px', 'overflowY': 'auto'},
-            style_data={'border': '1px solid black'}
         ),
 
         html.Hr(),  # horizontal line
@@ -171,7 +164,7 @@ def parse_contents(contents, filename,date):
         ]),
 
         dcc.Tabs([
-            dcc.Tab(label='Resúmen Estadístico', style=tab_style, selected_style=tab_selected_style,children=[
+            dcc.Tab(label='Resumen estadístico', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Br(),
                 dbc.Table(
                     # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
@@ -190,7 +183,6 @@ def parse_contents(contents, filename,date):
                             [
                                 html.Tr(
                                     [
-                                        # Recorremos el for para mostrar el nombre de la estadística a la izquierda de cada fila
                                         html.Td('count'),
                                         *[html.Td(df.describe().loc['count'][column]) for column in df.describe().columns]
                                     ]
@@ -248,7 +240,6 @@ def parse_contents(contents, filename,date):
                     style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
-
 
             dcc.Tab(label='EDA', style=tab_style, selected_style=tab_selected_style,children=[
                 # Tabla mostrando un resumen de las variables numéricas
@@ -333,17 +324,19 @@ def parse_contents(contents, filename,date):
             dcc.Tab(label='Distribución de Datos', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Div([
                     "Selecciona la variable X:",
-                    dbc.Select(
-                        options=[{'label': i, 'value': i} for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                    dcc.Dropdown(
+                        [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                        # Seleccionamos la primera columna numérica del dataframe
                         value=df[[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2]].columns[0],
-                        id='xaxis_column_bosque_clasificacion'
+                        id='xaxis_column-svm',
                     ),
 
                     "Selecciona la variable Y:",
-                    dbc.Select(
-                        options=[{'label': i, 'value': i} for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                    dcc.Dropdown(
+                        [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
+                        # Seleccionamos la segunda columna numérica del dataframe
                         value=df[[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2]].columns[1],
-                        id='yaxis_column_bosque_clasificacion',
+                        id='yaxis_column-svm',
                         placeholder="Selecciona la variable Y"
                     ),
 
@@ -352,12 +345,12 @@ def parse_contents(contents, filename,date):
                         [i for i in df.columns if (df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) == 2) or df[i].dtype in ['bool'] or (df[i].dtype in ['object'] and len(df[i].unique()) == 2)],
                         # Seleccionamos por defecto la primera columna
                         value=df[[i for i in df.columns if (df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) == 2) or df[i].dtype in ['bool'] or (df[i].dtype in ['object'] and len(df[i].unique()) == 2)]].columns[0],
-                        id='caxis_column_bosque_clasificacion',
+                        id='caxis_column-svm',
                         placeholder="Selecciona la variable Predictora"
                     ),
                 ]),
 
-                dcc.Graph(id='indicator_graphic_bosques'),
+                dcc.Graph(id='indicator_graphic-svm'),
             ]),
 
             dcc.Tab(label='Aplicación del algoritmo', style=tab_style, selected_style=tab_selected_style, children=[
@@ -366,7 +359,7 @@ def parse_contents(contents, filename,date):
                         [i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2],
                         # Seleccionamos la segunda columna numérica del dataframe
                         value=df[[i for i in df.columns if df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) > 2]].columns,
-                        id='X_Clase_bosque_clasificacion',
+                        id='X_Clase-svm',
                         multi=True,
                     ),
 
@@ -376,222 +369,109 @@ def parse_contents(contents, filename,date):
                     [i for i in df.columns if (df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) == 2) or df[i].dtype in ['bool'] or (df[i].dtype in ['object'] and len(df[i].unique()) == 2)],
                     # Seleccionamos por defecto la primera columna
                     value=df[[i for i in df.columns if (df[i].dtype in ['float64', 'int64'] and len(df[i].unique()) == 2) or df[i].dtype in ['bool'] or (df[i].dtype in ['object'] and len(df[i].unique()) == 2)]].columns[0],
-                    id='Y_Clase_bosque_clasificacion',
+                    id='Y_Clase-svm',
                     multi=True,
                 ),
+
+                # Salto de línea
+                html.Br(),
 
                 html.H2(["", dbc.Badge("Calibración del algoritmo", className="ms-1")]),
                 html.Br(),
 
-                dbc.Button(
-                    "Haz click para obtener información adicional acerca de los parámetros del algoritmo", id="open-body-scroll-info-BAC", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
-                ),
+                dcc.Markdown('''
+                    💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
+                    
+                    💭 **splitter**. Indica el criterio que se utilizará para dividir los nodos. Puede ser best o random. Best selecciona la mejor división mientras que random selecciona la mejor división aleatoriamente.                        
+                    
+                    💭 **max_depth**. Indica la máxima profundidad a la cual puede llegar el árbol. Esto ayuda a combatir el overfitting, pero también puede provocar underfitting.
+                    
+                    💭 **min_samples_split**. Indica la cantidad mínima de datos para que un nodo de decisión se pueda dividir. Si la cantidad no es suficiente este nodo se convierte en un nodo hoja.
+                    
+                    💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
+                '''),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Kernel**'''),
+                        dbc.Select(
+                            id='kernel-svm',
+                            options=[
+                                {'label': 'Linear', 'value': 'linear'},
+                                {'label': 'Polynomial', 'value': 'poly'},
+                                {'label': 'Radial Basis Function', 'value': 'rbf'},
+                                {'label': 'Sigmoid', 'value': 'sigmoid'},
+                            ],
+                            value='linear',
+                            placeholder="Selecciona el criterio",
+                        ),
+                    ], width=2, align='center'),
+                ], justify='center', align='center'),
+
+                html.Br(),
+
+                dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-clasificacion-svm',style={'width': '100%'}),
+
                 html.Hr(),
+
+                # Mostramos la matriz de confusión
+                html.Div(id='matriz-svm'),
+
+                html.Hr(),
+
+                # Mostramos el reporte de clasificación
+                html.Div(id='clasificacion-svm'),
+
+                html.Hr(),
+
+                html.H2(["", dbc.Badge("Curva ROC", className="ms-1")]),
+                dcc.Graph(id='roc-arbol-clasificacion-svm'),
+
+                html.H2(["", dbc.Badge("Vectores de Soporte", className="ms-1")]),
+                dcc.Graph(id='vectores-svm'),
+
+
+                dbc.Button(
+                    "Haz click para visualizar el árbol de decisión obtenido", id="open-body-scroll-svm", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
+                ),
 
                 dbc.Modal(
                     [
-                        dbc.ModalHeader(dbc.ModalTitle("Información sobre los parámetros del algoritmo")),
+                        dbc.ModalHeader(dbc.ModalTitle("Árbol de Decisión obtenido")),
                         dbc.ModalBody(
                             [
-                                dcc.Markdown('''
-
-                                    💭 **Criterio de División**. El criterio de división consiste en dividir los datos en dos grupos: Datos de entrenamiento (training: 80%, 75% o 70% de los datos) y datos de prueba (test: 20%, 25% o 30% de los datos). Los datos de entrenamiento se utilizan para entrenar el modelo y los datos de prueba se utilizan para evaluar el modelo.
-
-                                    🌲🌳 Ajustes para el Bosque Aleatorio 🌳🌲
-                                        
-                                    💭 **n_estimators**. Indica el número de árboles que va a tener el bosque aleatorio. Normalmente, cuantos más árboles es mejor, pero a partir de cierto punto deja de mejorar y se vuelve más lento. El valor por defecto es 100 árboles.
-
-                                    💭 **n_jobs**. Es el número de núcleos que se pueden usar para entrenar los árboles. Cada árbol es independiente del resto, así que entrenar un bosque aleatorio es una tarea paralelizable. Por defecto se utiliza 1 core de la CPU. Si se usa n_jobs = -1, se indica que se quiere usar tantos cores como tenga el equipo de cómputo.
-
-                                    💭 **max_features**. Para garantizar que los árboles sean diferentes, éstas se entrenan con una muestra aleatoria de datos. Si se quiere que sean más diferentes, se puede hacer que distintos árboles usen distintos atributos. Esto puede ser útil especialmente cuando algunas variables están relacionadas entre sí.
-                                    
-                                    🌳 Ajustes para los Árboles de Decisión 🌳
-                                    
-                                    💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
-                                    
-                                    💭 **max_depth**. Indica la máxima profundidad a la cual puede llegar el árbol. Esto ayuda a combatir el overfitting, pero también puede provocar underfitting.
-                                    
-                                    💭 **min_samples_split**. Indica la cantidad mínima de datos para que un nodo de decisión se pueda dividir. Si la cantidad no es suficiente este nodo se convierte en un nodo hoja.
-                                    
-                                    💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
-
-                                    💭 **max_leaf_nodes**. Indica el número máximo de nodos finales.
-                                '''),
+                                html.Div("sdfws"),
                             ]
                         ),
                         dbc.ModalFooter(
                             dbc.Button(
                                 "Close",
-                                id="close-body-scroll-info-BAC",
+                                id="close-body-scroll-svm",
                                 className="ms-auto",
                                 n_clicks=0,
                             )
                         ),
                     ],
-                    id="modal-body-scroll-info-BAC",
+                    id="modal-body-scroll-svm",
                     scrollable=True,
                     is_open=False,
                     size='xl',
                 ),
-
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Markdown('''**Criterio de División (Tamaño del test %):**'''),
-                        dcc.Slider(0.2, 0.3, 0.05, value=0.2, marks={0.2: '20%', 0.25: '25%', 0.3: '30%'}, id='criterio_division_BA'),
-                    ], width=3, align='center'),
-
-                ], justify='center', align='center'),
-
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Markdown('''**Criterio:**'''),
-                        dbc.Select(
-                            id='criterion_BAC',
-                            options=[
-                                {'label': 'Gini', 'value': 'gini'},
-                                {'label': 'Entropy', 'value': 'entropy'},
-                            ],
-                            value='gini',
-                            placeholder="Selecciona el criterio",
-                        ),
-                    ], width=2, align='center'),
-
-                    dbc.Col([
-                        dcc.Markdown('''**n_estimators:**'''),
-                        dbc.Input(
-                            id='n_estimators_BAC',
-                            type='number',
-                            placeholder='Ingresa el número de árboles',
-                            value=100,
-                            min=1,
-                            max=1000,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-
-                    dbc.Col([
-                        dcc.Markdown('''**n_jobs:**'''),
-                        dbc.Input(
-                            id='n_jobs_BAC',
-                            type='number',
-                            placeholder='None',
-                            value=None,
-                            min=-1,
-                            max=100,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-
-
-                    dbc.Col([
-                        dcc.Markdown('''**max_features:**'''),
-                        dbc.Select(
-                            id='max_features_BAC',
-                            options=[
-                                {'label': 'Auto', 'value': 'auto'},
-                                {'label': 'sqrt', 'value': 'sqrt'},
-                                {'label': 'log2', 'value': 'log2'},
-                            ],
-                            value='auto',
-                            placeholder="Selecciona una opción",
-                        ),
-                    ], width=2, align='center'),
-
-                    
-                    dbc.Col([
-                        dcc.Markdown('''**Max_depth:**'''),
-                        dbc.Input(
-                            id='max_depth_BAC',
-                            type='number',
-                            placeholder='None',
-                            value=None,
-                            min=1,
-                            max=100,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-
-                    dbc.Col([
-                        dcc.Markdown('''**Min_samples_split:**'''),
-                        dbc.Input(
-                            id='min_samples_split_BAC',
-                            type='number',
-                            placeholder='Selecciona el min_samples_split',
-                            value=2,
-                            min=1,
-                            max=100,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-
-                    dbc.Col([
-                        dcc.Markdown('''**Min_samples_leaf:**'''),
-                        dbc.Input(
-                            id='min_samples_leaf_BAC',
-                            type='number',
-                            placeholder='Selecciona el min_samples_leaf',
-                            value=1,
-                            min=1,
-                            max=100,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-
-                    dbc.Col([
-                        dcc.Markdown('''**max_leaf_nodes:**'''),
-                        dbc.Input(
-                            id='max_leaf_nodes_BAC',
-                            type='number',
-                            placeholder='None',
-                            value=None,
-                            min=1,
-                            max=1000,
-                            step=1,
-                        ),
-                    ], width=2, align='center'),
-            
-                ], justify='center', align='center'),
-
-                html.Hr(),
-
-                # Estilizamos el botón con Bootstrap
-                dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-clasificacion-bosques', style={'width': '100%'}),
-
-                html.Hr(),
-
-                # Mostramos la matriz de confusión
-                html.Div(id='matriz-bosque-clasificacion'),
-
-                html.Hr(),
-
-                # Mostramos el reporte de clasificación
-                html.Div(id='clasificacion-bosque-clasificacion'),
-
-                # Mostramos la importancia de las variables
-                html.H2(["", dbc.Badge("Importancia de las variables", className="ms-1")]),
-                dcc.Graph(id='importancia-bosque-clasificacion'),
-
-                html.Hr(),
-
-                html.H2(["", dbc.Badge("Curva ROC", className="ms-1")]),
-                dcc.Graph(id='roc-bosque-clasificacion'),
             ]),
 
             dcc.Tab(label='Nuevas Clasificaciones', style=tab_style, selected_style=tab_selected_style, children=[
                 html.H2(["", dbc.Badge("Introduce los datos de las nuevas clasificaciones", className="ms-1")]),
                 html.Hr(),
-                html.Div(id='output-clasificacion-BAC'),
+                html.Div(id='output-clasificacion-svm'),
                 html.Hr(),
-                html.Div(id='valor-clasificacion-BAC'),
-                html.Div(id='valor-clasificacion-BAC2'),
+                html.Div(id='valor-clasificacion-svm'),
+                html.Div(id='valor-clasificacion-svm2'),
                 
             ]),
-
-
         ])
     ]) #Fin del layout
 
-@callback(Output('output-data-upload-bosques-clasificacion', 'children'),
+@callback(Output('output-data-upload-svm', 'children'),
             Input('upload-data', 'contents'),
             State('upload-data', 'filename'),
             State('upload-data', 'last_modified'))
@@ -602,11 +482,12 @@ def update_output(list_of_contents, list_of_names,list_of_dates):
             zip(list_of_contents, list_of_names,list_of_dates)]
         return children
 
+# CALLBACK PARA LA SELECCIÓN DEL USUARIO
 @callback(
-    Output('indicator_graphic_bosques', 'figure'),
-    Input('xaxis_column_bosque_clasificacion', 'value'),
-    Input('yaxis_column_bosque_clasificacion', 'value'),
-    Input('caxis_column_bosque_clasificacion', 'value'))
+    Output('indicator_graphic-svm', 'figure'),
+    Input('xaxis_column-svm', 'value'),
+    Input('yaxis_column-svm', 'value'),
+    Input('caxis_column-svm', 'value'))
 def update_graph(xaxis_column, yaxis_column, caxis_column):
     dff = df
     dff[caxis_column] = dff[caxis_column].astype('category')
@@ -614,117 +495,136 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
     fig.update_layout(showlegend=True, xaxis_title=xaxis_column, yaxis_title=yaxis_column,
                     font=dict(family="Courier New, monospace", size=18, color="black"),legend_title_text=caxis_column)
     fig.update_traces(marker=dict(size=8, line=dict(width=1, color='DarkSlateGrey')), selector=dict(mode='markers'))
+    # str(df.groupby(caxis_column).size()[0])
+
     return fig
 
 @callback(
-    Output('matriz-bosque-clasificacion', 'children'),
-    Output('clasificacion-bosque-clasificacion', 'children'),
-    Output('importancia-bosque-clasificacion', 'figure'),
-    Output('roc-bosque-clasificacion', 'figure'),
-    Output('output-clasificacion-BAC', 'children'),
-    Output('valor-clasificacion-BAC', 'children'),
-    Input('submit-button-clasificacion-bosques','n_clicks'),
-    State('X_Clase_bosque_clasificacion', 'value'),
-    State('Y_Clase_bosque_clasificacion', 'value'),
-    State('criterio_division_BA', 'value'),
-    State('criterion_BAC', 'value'),
-    State('n_estimators_BAC', 'value'),
-    State('n_jobs_BAC', 'value'),
-    State('max_features_BAC', 'value'),
-    State('max_depth_BAC', 'value'),
-    State('min_samples_split_BAC', 'value'),
-    State('min_samples_leaf_BAC', 'value'),
-    State('max_leaf_nodes_BAC', 'value'))
-def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_estimators, n_jobs, max_features, max_depth, min_samples_split, min_samples_leaf, max_leaf_nodes):
+    Output('matriz-svm', 'children'),
+    Output('clasificacion-svm', 'children'),
+    Output('roc-arbol-clasificacion-svm', 'figure'),
+    Output('vectores-svm', 'figure'),
+    Output('output-clasificacion-svm', 'children'),
+    Output('valor-clasificacion-svm', 'children'),
+    Input('submit-button-clasificacion-svm','n_clicks'),
+    State('X_Clase-svm', 'value'),
+    State('Y_Clase-svm', 'value'),
+    State('kernel-svm', 'value'),
+    State(ThemeChangerAIO.ids.radio("theme"), 'value'))
+def clasificacion(n_clicks, X_Clase, Y_Clase, kernel, theme):
     if n_clicks is not None:
-        X = np.array(df[X_Clase])
-        Y = np.array(df[Y_Clase])
+        global ModeloSVM
 
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+        dff = df.copy()
+        Y_Clase2 = Y_Clase
+
+        #Si la primera clase es 0, se cambia a 0, y si es 1, se cambia a 1
+        if df[Y_Clase].unique()[0] == 0:
+            # Reemplazamos los valores 0 por 0:
+            df[Y_Clase] = df[Y_Clase].replace(df[Y_Clase].unique()[0], 0)
+        elif df[Y_Clase].unique()[0] == 1:
+            # Reemplazamos los valores 1 por 1:
+            df[Y_Clase] = df[Y_Clase].replace(df[Y_Clase].unique()[0], 1)
+        elif df[Y_Clase].unique()[1] == 0:
+            # Reemplazamos los valores 0 por 0:
+            df[Y_Clase] = df[Y_Clase].replace(df[Y_Clase].unique()[1], 0)
+        elif df[Y_Clase].unique()[1] == 1:
+            # Reemplazamos los valores 1 por 1:
+            df[Y_Clase] = df[Y_Clase].replace(df[Y_Clase].unique()[1], 1)
+        # Si no se cumple ninguna de las condiciones anteriores, se reemplazan los valores de la posición 0 por 0 y los de la posición 1 por 1:
+        else:
+            valor1Cambio = df[Y_Clase].unique()[0]
+            valor2Cambio = df[Y_Clase].unique()[1]
+            dff[Y_Clase2] = dff[Y_Clase2].replace(dff[Y_Clase2].unique()[0], 0)
+            dff[Y_Clase2] = dff[Y_Clase2].replace(dff[Y_Clase2].unique()[1], 1)
+            
+        X = np.array(df[X_Clase])
+        Y = np.array(dff[Y_Clase2])
+
         from sklearn import model_selection
+        from sklearn.svm import SVC #Support vector classifier
+        from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
         X_train, X_validation, Y_train, Y_validation = model_selection.train_test_split(X, Y, 
-                                                                                        test_size = criterio_division,
+                                                                                        test_size = 0.2, 
                                                                                         random_state = 0,
                                                                                         shuffle = True)
 
         #Se entrena el modelo a partir de los datos de entrada
-        global ClasificacionBA
-        ClasificacionBA = RandomForestClassifier(criterion = criterion,
-                                                n_estimators = n_estimators,
-                                                n_jobs = n_jobs,
-                                                max_features = max_features,
-                                                max_depth = max_depth,
-                                                min_samples_split = min_samples_split,
-                                                min_samples_leaf = min_samples_leaf,
-                                                max_leaf_nodes = max_leaf_nodes, random_state = 0)
-        ClasificacionBA.fit(X_train, Y_train)
+        ModeloSVM = SVC(kernel=kernel)
+        
+        #Se entrena el modelo a partir de los datos de entrada
+        ModeloSVM.fit(X_train, Y_train)
 
         #Se etiquetan las clasificaciones
-        Y_Clasificacion = ClasificacionBA.predict(X_validation)
-        Valores = pd.DataFrame(Y_validation, Y_Clasificacion)
+        Clasificaciones = ModeloSVM.predict(X_validation)
+
+        Valores = pd.DataFrame(Y_validation, Clasificaciones)
 
         #Se calcula la exactitud promedio de la validación
-        global exactitud
-        exactitud = accuracy_score(Y_validation, Y_Clasificacion)
+        exactitud = ModeloSVM.score(X_validation, Y_validation)
         
         #Matriz de clasificación
-        ModeloClasificacion = ClasificacionBA.predict(X_validation)
-        Matriz_Clasificacion = pd.crosstab(Y_validation.ravel(), 
-                                        ModeloClasificacion, 
+        ModeloClasificacion1 = ModeloSVM.predict(X_validation)
+        Matriz_Clasificacion1 = pd.crosstab(Y_validation.ravel(), 
+                                        ModeloClasificacion1, 
                                         rownames=['Reales'], 
                                         colnames=['Clasificación'])
+
+        VP = Matriz_Clasificacion1.iloc[0,0]
+        FP = Matriz_Clasificacion1.iloc[1,0]
+        FN = Matriz_Clasificacion1.iloc[0,1]
+        VN = Matriz_Clasificacion1.iloc[1,1]
+
+        kernelSVM = kernel.upper()
         
-        VP = Matriz_Clasificacion.iloc[0,0]
-        FP = Matriz_Clasificacion.iloc[1,0]
-        FN = Matriz_Clasificacion.iloc[0,1]
-        VN = Matriz_Clasificacion.iloc[1,1]
-
-        criterio = ClasificacionBA.criterion
-        precision = classification_report(Y_validation, Y_Clasificacion).split()[10]
-        tasa_error = 1-ClasificacionBA.score(X_validation, Y_validation)
-        sensibilidad = classification_report(Y_validation, Y_Clasificacion).split()[11]
-        especificidad = classification_report(Y_validation, Y_Clasificacion).split()[6]
-
-        # Importancia de las variables
-        importancia = pd.DataFrame({'Variable': list(df[X_Clase].columns),
-                            'Importancia': ClasificacionBA.feature_importances_}).sort_values('Importancia', ascending=False)
-
-        # Graficamos la importancia de las variables
-        fig2 = px.bar(importancia, x='Variable', y='Importancia', color='Importancia', color_continuous_scale='Bluered', text='Importancia')
-        fig2.update_layout(title_text='Importancia de las variables', xaxis_title="Variables", yaxis_title="Importancia")
-        fig2.update_traces(texttemplate='%{text:.2}', textposition='outside')
-        fig2.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
-        fig2.update_layout(legend_title_text='Importancia de las variables')
+        tasa_error = 1-exactitud
 
         #CURVA ROC
         Y_validation2 = pd.DataFrame(Y_validation) # Convertimos los valores de la variable Y_validation a un dataframe
         # Reeemplazamos los valores de la variable Y_validation2 por 0 y 1:
+        # Checamos si el dataframe tiene dos valores únicos y si esos son 1 y 0
         if len(Y_validation2[0].unique()) == 2 and Y_validation2[0].unique()[0] == 0 and Y_validation2[0].unique()[1] == 1 or len(Y_validation2[0].unique()) == 2 and Y_validation2[0].unique()[0] == 1 and Y_validation2[0].unique()[1] == 0:
             pass
         else:
             Y_validation2 = Y_validation2.replace([Y_validation2[0].unique()[0],Y_validation2[0].unique()[1]],[1,0])
+        
 
         # Graficamos la curva ROC con Plotly
-        y_score1 = ClasificacionBA.predict_proba(X_validation)[:,1]
+        y_score1 = ModeloSVM.decision_function(X_validation)
 
         from sklearn.metrics import roc_curve, auc
-        fpr, tpr, thresholds = roc_curve(Y_validation2, y_score1)
+        fpr1, tpr1, thresholds1 = roc_curve(Y_validation2, y_score1)
+
         # Graficamos la curva ROC con Plotly
-        fig3 = px.area(title='Curva ROC. Bosque aleatorio. AUC = '+ str(auc(fpr, tpr).round(4)) )
-        fig3.add_scatter(x=fpr, y=tpr, mode='lines', name='Bosque Aleatorio', fill='tonexty')
-        fig3.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line=dict(color="Black", dash="dash"))
-        fig3.update_layout(yaxis_title='True Positive Rate', xaxis_title='False Positive Rate')
-
-        # Generamos en texto el árbol de decisión
-        Estimador = ClasificacionBA.estimators_[1] # SE TIENE QUE ELEGIR POR EL USUARIO
-        from sklearn.tree import export_text
-        r = export_text(Estimador, feature_names=list(df[X_Clase].columns))
+        fig2 = px.area(title='Curva ROC del modelo SVM. Kernel: ' +str(kernel), x=fpr1, y=tpr1, labels={'x':'False Positive Rate', 'y':'True Positive Rate'})
+        # Agregamos la curva ROC del arbol de decisión más el ROC de este modelo y agregamos un área sombreada debajo de la curva
+        fig2.add_scatter(x=fpr1, y=tpr1, mode='lines', name='SVM ' +str(kernel) +', AUC = '+str(auc(fpr1, tpr1).round(4)), fill='tonexty')
+        # Agregamos la diagonal de la curva ROC con líneas punteadas
+        fig2.add_shape(type="line", x0=0, y0=0, x1=1, y1=1, line=dict(color="Black", dash="dash"))
 
 
+        VectoresSoporte = ModeloSVM.support_vectors_
+
+        # Hacemos lo mismo con Plotly
+        fig3 = px.scatter()
+        fig3.add_scatter(x=X_validation[:, 0], y=X_validation[:, 1], mode='markers', marker=dict(color=Clasificaciones, colorscale='temps',symbol="octagon"), name='Validación')
+        fig3.add_scatter(x=X_train[:, 0], y=X_train[:, 1], mode='markers', marker=dict(color=Y_train, colorscale='temps', symbol="diamond"), name='Entrenamiento')
+        fig3.add_scatter(x=X_train[ModeloSVM.support_[0:ModeloSVM.n_support_[0]], 0], y=X_train[ModeloSVM.support_[0:ModeloSVM.n_support_[0]], 1], name='Vectores de soporte 1', mode='markers', line=dict(color='green'),
+                        #Contorno de los vectores de soporte (negro)
+                        marker=dict(line=dict(color='black', width=1)))
+        fig3.add_scatter(x=X_train[ModeloSVM.support_[ModeloSVM.n_support_[0]:], 0], y=X_train[ModeloSVM.support_[ModeloSVM.n_support_[0]:], 1], name='Vectores de soporte 2', mode='markers', line=dict(color='pink'),
+                        #Contorno de los vectores de soporte (neg
+                        marker=dict(line=dict(color='black', width=1)))
+        fig3.data[1].name = 'Datos de Validación'
+        fig3.data[2].name = 'Datos de Entrenamiento'
+        fig3.data[3].name = 'Vectores de soporte 1'
+        fig3.data[4].name = 'Vectores de soporte 2'
+
+        
         return html.Div([
             html.H2(["", dbc.Badge("Matriz de clasificación", className="ms-1")]),
+            dbc.Alert("Se hicieron cambios a los valores de la variable Clase. "+ str(valor1Cambio) + ': 1. ' + str(valor2Cambio) + ': 0', color="info",style={'textAlign': 'center'}),
             dbc.Row([
                 dbc.Col([
                     dbc.Alert('Verdaderos Positivos (VP): ' + str(VP), color="info"),
@@ -734,22 +634,16 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                     dbc.Alert('Falsos Negativos (FN): ' + str(FN), color="info"),
                     dbc.Alert('Verdaderos Negativos (VN): ' + str(VN), color="info"),
                 ], width=4),
-                ], justify="center"), 
+                ], justify="center"),
+
         ]), html.Div([
-            html.H2(["", dbc.Badge("Reporte del bosque obtenido", className="ms-1")]),
+            html.H2(["", dbc.Badge("Reporte del árbol de decisión obtenido", className="ms-1")]),
             dbc.Table(
                 [
                     html.Thead(
                         html.Tr(
                             [
-                                html.Th("Criterion"),
-                                html.Th("n_estimators"),
-                                html.Th("n_jobs"),
-                                html.Th("max_features"),
-                                html.Th("Max_depth"),
-                                html.Th("Min_samples_split"),
-                                html.Th("Min_samples_leaf"),
-                                html.Th("Max_leaf_nodes"),
+                                html.Th("Kernel"),
                             ]
                         )
                     ),
@@ -757,14 +651,7 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                         [
                             html.Tr(
                                 [
-                                    html.Td(criterio),
-                                    html.Td(str(n_estimators)),
-                                    html.Td(str(n_jobs)),
-                                    html.Td(str(max_features)),
-                                    html.Td(str(max_depth)),
-                                    html.Td(str(min_samples_split)),
-                                    html.Td(str(min_samples_leaf)),
-                                    html.Td(str(max_leaf_nodes)),
+                                    html.Td(kernelSVM),
                                 ]
                             ),
                         ]
@@ -785,8 +672,8 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                         html.Tr(
                             [
                                 html.Th("Reporte de clasificación"),
-                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Y_Clasificacion).split()[4])),
-                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Y_Clasificacion).split()[9])),
+                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Clasificaciones).split()[4])),
+                                html.Th("Reporte de clasificación para la clase: " + str(classification_report(Y_validation, Clasificaciones).split()[9])),
                             ]
                         )
                     ),
@@ -808,14 +695,14 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                             ),
                             html.Tr(
                                 [
-                                    html.Td("Valores Verdaderos: " + str((Y_validation == Y_Clasificacion).sum()), style={'color': 'green'}),
+                                    html.Td("Valores Verdaderos: " + str((Y_validation == Clasificaciones).sum()), style={'color': 'green'}),
                                     html.Td("Especificidad (Specificity, True Negative Rate): " + str(round(float(VN/(VN+FP))*100,5)) + '%'),
                                     html.Td("Especificidad (Specificity, True Negative Rate): " + str(round(float(VP/(VP+FN))*100,5)) + '%'),
                                 ]
                             ),
                             html.Tr(
                                 [
-                                    html.Td("Valores Falsos: " + str((Y_validation != Y_Clasificacion).sum()), style={'color': 'red'}),
+                                    html.Td("Valores Falsos: " + str((Y_validation != Clasificaciones).sum()), style={'color': 'red'}),
                                     html.Td("F1-Score: " + str(round(float(2*VP/(2*VP+FP+FN))*100,5)) + '%'),
                                     html.Td("F1-Score: " + str(round(float(2*VN/(2*VN+FN+FP))*100,5)) + '%'),
                                 ]
@@ -823,8 +710,8 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                             html.Tr(
                                 [
                                     html.Td("Valores Totales: " + str(Y_validation.size)),
-                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Y_Clasificacion).split()[8])),
-                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Y_Clasificacion).split()[13])),
+                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Clasificaciones).split()[8])),
+                                    html.Td("Número de muestras: " + str(classification_report(Y_validation, Clasificaciones).split()[13])),
                                 ]
                             ),
                         ]
@@ -837,38 +724,30 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                 style={'width': '100%', 'text-align': 'center'},
             ),
 
-
-        ]), fig2, fig3, html.Div([
+        ]), fig2, fig3,html.Div([
             dbc.Row([
                 dbc.Col([
-                    dbc.Input(id='values_X1_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[0],style={'width': '100%'}),
+                    dbc.Input(id='values_X1_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[0],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[0])),
-                    dbc.Input(id='values_X2_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[1],style={'width': '100%'}),
+                    dbc.Input(id='values_X2_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[1],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[1])),
-                    dbc.Input(id='values_X3_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[2],style={'width': '100%'}),
+                    dbc.Input(id='values_X3_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[2],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[2])),
-                ], width=4),
-                dbc.Col([
-                    dbc.Input(id='values_X4_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
+                    dbc.Input(id='values_X4_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[3])),
-                    dbc.Input(id='values_X5_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
+                    dbc.Input(id='values_X5_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[4])),
-                    dbc.Input(id='values_X6_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[5],style={'width': '100%'}),
+                    dbc.Input(id='values_X6_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[5],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[5])),
-                ], width=4),
-
-                dbc.Col([
-                    dbc.Input(id='values_X7_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[6],style={'width': '100%'}),
+                    dbc.Input(id='values_X7_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[6],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[6])),
-                    dbc.Input(id='values_X8_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[7],style={'width': '100%'}),
+                    dbc.Input(id='values_X8_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[7],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[7])),
-                    dbc.Input(id='values_X9_BA_Clasificacion', type="number", placeholder=df[X_Clase].columns[8],style={'width': '100%'}),
-                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[8])),
-                ], width=4),
-            ]),
+                ], width=6),
+            ])
 
         ]), html.Div([
-                dbc.Button("Haz click para mostrar la clasificación...", id="collapse-button-BA", className="mb-3", color="primary"),
+                dbc.Button("Mostrar valores reales y pronosticados", id="collapse-button", className="mb-3", color="primary"),
                 dbc.Collapse(
                     dbc.Card(dbc.CardBody([
                         html.Div(id='output-container-button'),
@@ -876,48 +755,49 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
                     id="collapse",
                 ),
         ])
-    
+
     elif n_clicks is None:
         import dash.exceptions as de
         raise de.PreventUpdate
 
 
-
 @callback(
-    Output('valor-clasificacion-BAC2', 'children'),
-    Input('collapse-button-BA', 'n_clicks'),
-    State('values_X1_BA_Clasificacion', 'value'),
-    State('values_X2_BA_Clasificacion', 'value'),
-    State('values_X3_BA_Clasificacion', 'value'),
-    State('values_X4_BA_Clasificacion', 'value'),
-    State('values_X5_BA_Clasificacion', 'value'),
-    State('values_X6_BA_Clasificacion', 'value'),
-    State('values_X7_BA_Clasificacion', 'value'),
-    State('values_X8_BA_Clasificacion', 'value'),
-    State('values_X9_BA_Clasificacion', 'value'),
+    Output('valor-clasificacion-svm2', 'children'),
+    Input('collapse-button-svm', 'n_clicks'),
+    State('values_X1_AD_Clasificacion', 'value'),
+    State('values_X2_AD_Clasificacion', 'value'),
+    State('values_X3_AD_Clasificacion', 'value'),
+    State('values_X4_AD_Clasificacion', 'value'),
+    State('values_X5_AD_Clasificacion', 'value'),
+    State('values_X6_AD_Clasificacion', 'value'),
+    State('values_X7_AD_Clasificacion', 'value'),
+    State('values_X8_AD_Clasificacion', 'value'),
 )
-def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8, values_X9):
+def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8):
     if n_clicks is not None:
-        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None or values_X9 is None:
+        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None:
             return html.Div([
-                dbc.Alert('Debe ingresar los valores de todas las variables', color="danger")
+                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
             ])
         else:
+            # Convertimos el arreglo a un DataFrame
+            values_X = np.array([values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8])
             
-            XPredict = pd.DataFrame([[values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8, values_X9]])
+            XPredict = pd.DataFrame(values_X)
 
-            clasiFinal = ClasificacionBA.predict(XPredict)
+            clasiFinal = ModeloSVM.predict(XPredict)[0]
             return html.Div([
-                dbc.Alert('El valor clasificado con un Bosque Aleatorio que tiene una Exactitud de: ' + str(round(exactitud, 4)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
+                dbc.Alert('Valor pronosticado: ' + str(clasiFinal), color="success")
             ])
 
+
 @callback(
-    Output("modal-body-scroll-info-BAC", "is_open"),
+    Output("modal-body-scroll-svm", "is_open"),
     [
-        Input("open-body-scroll-info-BAC", "n_clicks"),
-        Input("close-body-scroll-info-BAC", "n_clicks"),
+        Input("open-body-scroll-svm", "n_clicks"),
+        Input("close-body-scroll-svm", "n_clicks"),
     ],
-    [State("modal-body-scroll-info-BAC", "is_open")],
+    [State("modal-body-scroll-svm", "is_open")],
 )
 def toggle_modal(n1, n2, is_open):
     if n1 or n2:

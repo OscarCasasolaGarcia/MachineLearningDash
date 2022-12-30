@@ -52,7 +52,6 @@ tab_selected_style = {
 
 layout = html.Div([
     html.H1('Árboles de Decisión 🌳 (Regresión) 📈', style={'text-align': 'center'}),
-    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -249,6 +248,86 @@ def parse_contents(contents, filename,date):
                     style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
+
+            dcc.Tab(label='EDA', style=tab_style, selected_style=tab_selected_style,children=[
+                # Tabla mostrando un resumen de las variables numéricas
+                html.Br(),
+                dbc.Table(
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la columna y las demás columnas: nombre de las estadísticas (count, mean, std, min, 25%, 50%, 75%, max)
+                                    html.Th('Variable'),
+                                    html.Th('Tipo de dato'),
+                                    html.Th('Count'),
+                                    html.Th('Valores nulos'),
+                                    html.Th('Valores únicos'),
+                                    html.Th('Datos más frecuentes y su cantidad'),
+                                    html.Th('Datos menos frecuentes y su cantidad'),
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td(column), # Primera columna: nombre de la columna
+                                        html.Td(
+                                            str(df.dtypes[column]),
+                                            style={
+                                                'color': 'green' if df.dtypes[column] == 'float64' else 'blue' if df.dtypes[column] == 'int64' else 'red' if df.dtypes[column] == 'object' else 'orange' if df.dtypes[column] == 'bool' else 'purple'
+                                            }
+                                        ),
+
+                                        # Count del tipo de dato (y porcentaje)
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].count())),
+                                            ]
+                                        ),
+
+                                        html.Td(
+                                            df[column].isnull().sum(),
+                                            style={
+                                                'color': 'red' if df[column].isnull().sum() > 0 else 'green'
+                                            }
+                                        ),
+
+                                        #Valores únicos
+                                        html.Td(
+                                            df[column].nunique(),
+                                            style={
+                                                'color': 'green' if df[column].nunique() == 0 else 'black'
+                                            }
+                                        ),
+
+                                        # Top valores más frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[0])+" ("+str(round(df[column].value_counts().values[0]*1,2))+")"),
+                                            ]
+                                        ),
+
+                                        # Top valores menos frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[-1])+" ("+str(round(df[column].value_counts().values[-1]*1,2))+")"),
+                                            ]
+                                        ),
+                                    ]
+                                ) for column in df.dtypes.index
+                            ]
+                        )
+                    ],
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    # Texto centrado y tabla alineada al centro de la página
+                    style={'textAlign': 'center', 'width': '100%'}
+                ),
+            ]),
         
             dcc.Tab(label='Distribución de Datos', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Div([
@@ -296,6 +375,9 @@ def parse_contents(contents, filename,date):
                 html.Br(),
 
                 dcc.Markdown('''
+
+                    💭 **Criterio de División**. El criterio de división consiste en dividir los datos en dos grupos: Datos de entrenamiento (training: 80%, 75% o 70% de los datos) y datos de prueba (test: 20%, 25% o 30% de los datos). Los datos de entrenamiento se utilizan para entrenar el modelo y los datos de prueba se utilizan para evaluar el modelo.
+
                     💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
                     
                     💭 **splitter**. Indica el criterio que se utilizará para dividir los nodos. Puede ser best o random. Best selecciona la mejor división mientras que random selecciona la mejor división aleatoriamente.                        
@@ -306,6 +388,16 @@ def parse_contents(contents, filename,date):
                     
                     💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
                 '''),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Criterio de División (Tamaño del test %):**'''),
+                        dcc.Slider(0.2, 0.3, 0.05, value=0.2, marks={0.2: '20%', 0.25: '25%', 0.3: '30%'}, id='criterio_division_ADR'),
+                    ], width=3, align='center'),
+
+                ], justify='center', align='center'),
+
+                html.Br(),
 
                 dbc.Row([
                     dbc.Col([
@@ -426,9 +518,8 @@ def parse_contents(contents, filename,date):
                 ),
             ]),
 
-            dcc.Tab(label='Nuevas Predicciones', style=tab_style, selected_style=tab_selected_style, children=[
+            dcc.Tab(label='Nuevos Pronósticos', style=tab_style, selected_style=tab_selected_style, children=[
                 html.Div(id="output-regresion-arbol-regresion-Final"),
-                # Mostramos la predicción
 
                 html.Div(id='valor-regresion2'),
                 html.Div(id='valor-regresion'),
@@ -476,12 +567,13 @@ def update_graph2(xaxis_column2, yaxis_column2):
     Input('submit-button-arbol-regresion', 'n_clicks'),
     State('X_Clase_Arbol_Regresion', 'value'),
     State('Y_Clase_Arbol_Regresion', 'value'),
+    State('criterio_division_ADR', 'value'),
     State('criterion_ADR', 'value'),
     State('splitter_ADR', 'value'),
     State('max_depth_ADR', 'value'),
     State('min_samples_split_ADR', 'value'),
     State('min_samples_leaf_ADR', 'value'))
-def regresion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_samples_split, min_samples_leaf):
+def regresion(n_clicks, X_Clase, Y_Clase, criterio_division,criterion, splitter, max_depth, min_samples_split, min_samples_leaf):
     if n_clicks is not None:
         global X
         X = np.array(df[X_Clase])
@@ -494,7 +586,7 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_sa
         from sklearn import model_selection
 
         X_train, X_test, Y_train, Y_test = model_selection.train_test_split(X, Y, 
-                                                                                test_size = 0.2, 
+                                                                                test_size = criterio_division, 
                                                                                 random_state = 0,
                                                                                 shuffle = True)
 
@@ -530,7 +622,8 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_sa
         MSEArbol = mean_squared_error(Y_test, Y_PronosticoArbol)
         #RMSE:
         RMSEArbol = mean_squared_error(Y_test, Y_PronosticoArbol, squared=False)
-        # Score
+        
+        global ScoreArbol
         ScoreArbol = r2_score(Y_test, Y_PronosticoArbol)
         
 
@@ -619,7 +712,7 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_sa
             ])
 
         ]), html.Div([
-                dbc.Button("Mostrar valores reales y pronosticados", id="collapse-button", className="mb-3", color="primary"),
+                dbc.Button("Haz click para mostrar el pronóstico", id="collapse-button", className="mb-3", color="primary"),
                 dbc.Collapse(
                     dbc.Card(dbc.CardBody([
                         html.Div(id='output-container-button'),
@@ -663,17 +756,14 @@ def regresionFinal(n_clicks, data, values_X1, values_X2, values_X3, values_X4, v
     if n_clicks is not None:
         if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None:
             return html.Div([
-                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
+                dbc.Alert('Debe ingresar todos los valores de las variables', color="danger")
             ])
         else:
-            # Convertimos el arreglo a un DataFrame
-            values_X = np.array([values_X1, values_X2, values_X3, values_X4, values_X5]).reshape(1, -1)
-            
-            XPredict = pd.DataFrame(values_X)
+            XPredict = pd.DataFrame([[values_X1, values_X2, values_X3, values_X4, values_X5]])
 
-            regresionFinal = PronosticoAD.predict(XPredict)
+            clasiFinal = PronosticoAD.predict(XPredict)
             return html.Div([
-                dbc.Alert('Valor pronosticado: ' + str(regresionFinal), color="success")
+                dbc.Alert('El valor pronosticado con un árbol de decisión que tiene una Exactitud de: ' + str(round(ScoreArbol, 4)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
             ])
 
 

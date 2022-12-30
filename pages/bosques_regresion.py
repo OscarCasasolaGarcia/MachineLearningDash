@@ -51,7 +51,6 @@ theme_change = ThemeChangerAIO(
 
 layout = html.Div([
     html.H1('Bosques Aleatorios 🌳🌲🌳 (Regresión)📈', style={'text-align': 'center'}),
-    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -250,6 +249,86 @@ def parse_contents(contents, filename,date):
                     style={'textAlign': 'center', 'width': '100%'}
                 ),
             ]),
+
+            dcc.Tab(label='EDA', style=tab_style, selected_style=tab_selected_style,children=[
+                # Tabla mostrando un resumen de las variables numéricas
+                html.Br(),
+                dbc.Table(
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    # Primer columna: nombre de la columna y las demás columnas: nombre de las estadísticas (count, mean, std, min, 25%, 50%, 75%, max)
+                                    html.Th('Variable'),
+                                    html.Th('Tipo de dato'),
+                                    html.Th('Count'),
+                                    html.Th('Valores nulos'),
+                                    html.Th('Valores únicos'),
+                                    html.Th('Datos más frecuentes y su cantidad'),
+                                    html.Th('Datos menos frecuentes y su cantidad'),
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td(column), # Primera columna: nombre de la columna
+                                        html.Td(
+                                            str(df.dtypes[column]),
+                                            style={
+                                                'color': 'green' if df.dtypes[column] == 'float64' else 'blue' if df.dtypes[column] == 'int64' else 'red' if df.dtypes[column] == 'object' else 'orange' if df.dtypes[column] == 'bool' else 'purple'
+                                            }
+                                        ),
+
+                                        # Count del tipo de dato (y porcentaje)
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].count())),
+                                            ]
+                                        ),
+
+                                        html.Td(
+                                            df[column].isnull().sum(),
+                                            style={
+                                                'color': 'red' if df[column].isnull().sum() > 0 else 'green'
+                                            }
+                                        ),
+
+                                        #Valores únicos
+                                        html.Td(
+                                            df[column].nunique(),
+                                            style={
+                                                'color': 'green' if df[column].nunique() == 0 else 'black'
+                                            }
+                                        ),
+
+                                        # Top valores más frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[0])+" ("+str(round(df[column].value_counts().values[0]*1,2))+")"),
+                                            ]
+                                        ),
+
+                                        # Top valores menos frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[-1])+" ("+str(round(df[column].value_counts().values[-1]*1,2))+")"),
+                                            ]
+                                        ),
+                                    ]
+                                ) for column in df.dtypes.index
+                            ]
+                        )
+                    ],
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    # Texto centrado y tabla alineada al centro de la página
+                    style={'textAlign': 'center', 'width': '100%'}
+                ),
+            ]),
         
             dcc.Tab(label='Distribución de Datos', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Br(),
@@ -313,6 +392,9 @@ def parse_contents(contents, filename,date):
                         dbc.ModalBody(
                             [
                                 dcc.Markdown('''
+
+                                    💭 **Criterio de División**. El criterio de división consiste en dividir los datos en dos grupos: Datos de entrenamiento (training: 80%, 75% o 70% de los datos) y datos de prueba (test: 20%, 25% o 30% de los datos). Los datos de entrenamiento se utilizan para entrenar el modelo y los datos de prueba se utilizan para evaluar el modelo.
+
                                     🌲🌳 Ajustes para el Bosque Aleatorio 🌳🌲
                                         
                                     💭 **n_estimators**. Indica el número de árboles que va a tener el bosque aleatorio. Normalmente, cuantos más árboles es mejor, pero a partir de cierto punto deja de mejorar y se vuelve más lento. El valor por defecto es 100 árboles.
@@ -349,6 +431,16 @@ def parse_contents(contents, filename,date):
                     is_open=False,
                     size='xl',
                 ),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Criterio de División (Tamaño del test %):**'''),
+                        dcc.Slider(0.2, 0.3, 0.05, value=0.2, marks={0.2: '20%', 0.25: '25%', 0.3: '30%'}, id='criterio_division_BAR'),
+                    ], width=3, align='center'),
+
+                ], justify='center', align='center'),
+
+                html.Br(),
 
 
                 dbc.Row([
@@ -463,6 +555,8 @@ def parse_contents(contents, filename,date):
             
                 ], justify='center', align='center'),
 
+                html.Br(),
+
 
                 dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-bosque-regresion', style={'width': '100%'}),
 
@@ -480,9 +574,15 @@ def parse_contents(contents, filename,date):
                 dcc.Graph(id='importancia-bosque-regresion'),
             ]),
 
-            dcc.Tab(label='Árbol de Decisión', style=tab_style, selected_style=tab_selected_style, children=[
-                # Imprimimos el árbol de decisión
-                html.Div(id='arbol-bosque-regresion'),
+            dcc.Tab(label='Nuevos Pronósticos', style=tab_style, selected_style=tab_selected_style, children=[
+                html.Div(id="output-regresion-BAR-Final"),
+
+                html.Div(id='valor-BAR-regresion2'),
+                html.Div(id='valor-BAR-regresion'),
+
+                html.Hr(),
+
+                dcc.Store(id='memory-output-BAR', data=df.to_dict('records')),
             ]),
         ])
     ])
@@ -518,10 +618,12 @@ def update_graph2(xaxis_column2, yaxis_column2):
     Output('matriz-bosque-regresion', 'figure'),
     Output('clasificacion-bosque-regresion', 'children'),
     Output('importancia-bosque-regresion', 'figure'),
-    Output('arbol-bosque-regresion', 'children'),
+    Output('output-regresion-BAR-Final', 'children'),
+    Output('valor-BAR-regresion2', 'children'),
     Input('submit-button-bosque-regresion', 'n_clicks'),
     State('X_Clase_Bosque_Regresion', 'value'),
     State('Y_Clase_Bosque_Regresion', 'value'),
+    State('criterio_division_BAR', 'value'),
     State('criterion_BAR', 'value'),
     State('n_estimators_BAR', 'value'),
     State('n_jobs_BAR', 'value'),
@@ -531,7 +633,7 @@ def update_graph2(xaxis_column2, yaxis_column2):
     State('min_samples_leaf_BAR', 'value'),
     State('max_leaf_nodes_BAR', 'value'),
     )
-def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_features, max_depth, min_samples_split, min_samples_leaf, max_leaf_nodes):
+def regresion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_estimators, n_jobs, max_features, max_depth, min_samples_split, min_samples_leaf, max_leaf_nodes):
     if n_clicks is not None:
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
@@ -543,11 +645,12 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_f
         from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
         X_train, X_test, Y_train, Y_test = model_selection.train_test_split(X, Y, 
-                                                                                test_size = 0.2, 
+                                                                                test_size = criterio_division,
                                                                                 random_state = 0,
                                                                                 shuffle = True)
 
         #Se entrena el modelo a partir de los datos de entrada
+        global PronosticoBA
         PronosticoBA = RandomForestRegressor(criterion=criterion, n_estimators=n_estimators, n_jobs=n_jobs, max_features=max_features, max_depth=max_depth, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf, max_leaf_nodes=max_leaf_nodes, random_state=0)
         PronosticoBA.fit(X_train, Y_train)
 
@@ -569,9 +672,6 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_f
         
         
         criterio = PronosticoBA.criterion
-        #profundidad = PronosticoBA.get_depth()
-        #hojas = PronosticoBA.get_n_leaves()
-        #nodos = PronosticoBA.get_n_leaves() + PronosticoBA.get_depth()
         #MAE:
         MAEArbol = mean_absolute_error(Y_test, Y_PronosticoBosque)
         #MSE:
@@ -579,6 +679,7 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_f
         #RMSE:
         RMSEArbol = mean_squared_error(Y_test, Y_PronosticoBosque, squared=False)
         # Score
+        global ScoreArbol
         ScoreArbol = r2_score(Y_test, Y_PronosticoBosque)
         
 
@@ -650,7 +751,29 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterion, n_estimators, n_jobs, max_f
             ),
             
         ]), fig2, html.Div([
-            dbc.Alert(r, color="success", style={'whiteSpace': 'pre-line'}, className="mb-3")
+            dbc.Row([
+                dbc.Col([
+                    dbc.Input(id='values_X1_BAR', type="number", placeholder=df[X_Clase].columns[0],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[0])),
+                    dbc.Input(id='values_X2_BAR', type="number", placeholder=df[X_Clase].columns[1],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[1])),
+                    dbc.Input(id='values_X3_BAR', type="number", placeholder=df[X_Clase].columns[2],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[2])),
+                    dbc.Input(id='values_X4_BAR', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[3])),
+                    dbc.Input(id='values_X5_BAR', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
+                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[4])),
+                ], width=6),
+            ])
+
+        ]), html.Div([
+                dbc.Button("Haz click para mostrar el pronóstico", id="collapse-button-BAR", className="mb-3", color="primary"),
+                dbc.Collapse(
+                    dbc.Card(dbc.CardBody([
+                        html.Div(id='output-container-button-BAR'),
+                    ])),
+                    id="collapse",
+                ),
         ])
     
     elif n_clicks is None:
@@ -673,6 +796,31 @@ callback(Output("Y_Clase_Bosque_Regresion", "options"), [Input("X_Clase_Bosque_R
     filter_options
 )
 
+@callback(
+    Output('valor-BAR-regresion', 'children'),
+    Input('collapse-button-BAR', 'n_clicks'),
+    # Mostar los valores de los inputs
+    State('memory-output-BAR', 'data'),
+    State('values_X1_BAR', 'value'),
+    State('values_X2_BAR', 'value'),
+    State('values_X3_BAR', 'value'),
+    State('values_X4_BAR', 'value'),
+    State('values_X5_BAR', 'value'),
+)
+def regresionFinal(n_clicks, data, values_X1, values_X2, values_X3, values_X4, values_X5):
+    if n_clicks is not None:
+        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None:
+            return html.Div([
+                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
+            ])
+        else:
+            XPredict = pd.DataFrame([[values_X1, values_X2, values_X3, values_X4, values_X5]])
+
+            clasiFinal = PronosticoBA.predict(XPredict)
+            return html.Div([
+                dbc.Alert('El valor pronosticado con un árbol de decisión que tiene una Exactitud de: ' + str(round(ScoreArbol, 4)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
+            ])
+
 
 @callback(
     Output("modal-body-scroll-info-BAR", "is_open"),
@@ -686,3 +834,4 @@ def toggle_modal(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
+

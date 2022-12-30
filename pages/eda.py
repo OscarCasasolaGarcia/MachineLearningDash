@@ -20,6 +20,10 @@ theme_change = ThemeChangerAIO(
     aio_id="theme",button_props={
         "color": "danger",
         "children": "SELECT THEME",
+        "outline": True,
+    },
+    radio_props={
+        "persistence": True,
     },
 )
 
@@ -42,7 +46,6 @@ tab_selected_style = {
 
 layout = html.Div([
     html.H1('Exploratory Data Analysis (EDA)📊', style={'text-align': 'center'}),
-    theme_change,
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -121,7 +124,6 @@ def parse_contents(contents, filename,date):
             dcc.Tab(label='Tipos de datos, Valores Nulos y Valores Únicos', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Br(),
                 dbc.Table(
-                    # Mostramos los valores nulos de cada columna del dataframe
                     [
                         html.Thead(
                             html.Tr(
@@ -129,8 +131,11 @@ def parse_contents(contents, filename,date):
                                     # Primer columna: nombre de la columna y las demás columnas: nombre de las estadísticas (count, mean, std, min, 25%, 50%, 75%, max)
                                     html.Th('Variable'),
                                     html.Th('Tipo de dato'),
+                                    html.Th('Count'),
                                     html.Th('Valores nulos'),
                                     html.Th('Valores únicos'),
+                                    html.Th('Datos más frecuentes y su cantidad'),
+                                    html.Th('Datos menos frecuentes y su cantidad'),
                                 ]
                             )
                         ),
@@ -144,21 +149,43 @@ def parse_contents(contents, filename,date):
                                             style={
                                                 'color': 'green' if df.dtypes[column] == 'float64' else 'blue' if df.dtypes[column] == 'int64' else 'red' if df.dtypes[column] == 'object' else 'orange' if df.dtypes[column] == 'bool' else 'purple'
                                             }
-                                        ), # Segunda columna: tipo de dato
+                                        ),
+
+                                        # Count del tipo de dato (y porcentaje)
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].count())),
+                                            ]
+                                        ),
+
                                         html.Td(
                                             df[column].isnull().sum(),
                                             style={
                                                 'color': 'red' if df[column].isnull().sum() > 0 else 'green'
                                             }
-                                        ), # Tercera columna: valores nulos
+                                        ),
+
                                         #Valores únicos
                                         html.Td(
                                             df[column].nunique(),
                                             style={
                                                 'color': 'green' if df[column].nunique() == 0 else 'black'
                                             }
-                                        )
+                                        ),
 
+                                        # Top valores más frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[0])+" ("+str(round(df[column].value_counts().values[0]*1,2))+")"),
+                                            ]
+                                        ),
+
+                                        # Top valores menos frecuentes
+                                        html.Td(
+                                            [
+                                                html.P("{}".format(df[column].value_counts().index[-1])+" ("+str(round(df[column].value_counts().values[-1]*1,2))+")"),
+                                            ]
+                                        ),
                                     ]
                                 ) for column in df.dtypes.index
                             ]
@@ -284,107 +311,6 @@ def parse_contents(contents, filename,date):
                 ]),
             ]),
 
-            
-            dcc.Tab(label='Resumen estadístico variables categóricas', style=tab_style, selected_style=tab_selected_style,children=[
-                # Verificamos que existan variables de tipo object, sino, mostramos un mensaje
-                html.Br(),
-                html.Div(
-                    children=[
-                        html.H4('Resumen estadístico variables categóricas'),
-                        html.P('No se encontraron variables de tipo object'),
-                    ],
-                    style={'display': 'none'} if len(df.select_dtypes(include=['object']).columns) > 0 else {}
-                ),
-
-                dbc.Table(
-                    # Mostamos el resumen estadístico de las variables de tipo object, con su descripción a la izquierda
-                    [
-                        html.Thead(
-                            html.Tr(
-                                [
-                                    html.Th("Descripción"),
-                                    html.Th("Valor"),
-                                ]
-                            )
-                        ),
-                        html.Tbody(
-                            [
-                                html.Tr(
-                                    [
-                                        html.Td("Variables de tipo object"),
-                                        # Mostramos el número de variables de tipo object y cuáles son:
-                                        html.Td(
-                                            [
-                                                html.P("Número de variables: {}".format(len(df.select_dtypes(include=['object']).columns))),
-                                                # Mostramos el nombre de las variables de tipo object
-                                                html.P("Variables: {}".format(", ".join(df.select_dtypes(include=['object']).columns))),
-                                            ]
-                                        ),
-                                    ]
-                                ),
-
-                                html.Tr(
-                                    [
-                                        html.Td("Total de valores de tipo Object (Count)"),
-                                        html.Td(
-                                            [
-                                                html.P("Total: {}".format(df.select_dtypes(include=['object']).count().sum())),
-                                                # Mostramos el nombre de las variables de tipo object y el número de valores por variable
-                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].count()) for col in df.select_dtypes(include=['object']).columns]))),
-                                            ]
-                                        ),
-                                    ]
-                                ),
-
-                                html.Tr(
-                                    [
-                                        html.Td("Valores únicos (Unique)"),
-                                        html.Td(
-                                            [
-                                                # Mostramos el número de valores únicos por variable de tipo object
-                                                html.P("Total: {}".format(df.select_dtypes(include=['object']).nunique().sum())),
-                                                # Mostramos el nombre de las variables de tipo object y el número de valores únicos por variable
-                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].nunique()) for col in df.select_dtypes(include=['object']).columns]))),
-                                            ]
-                                        ),
-                                    ]
-                                ),
-                                html.Tr(
-                                    [
-                                        html.Td("Top"),
-                                        html.Td(
-                                            [
-                                                # Mostramos el valor más frecuente por variable de tipo object
-                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].value_counts().index[0]) for col in df.select_dtypes(include=['object']).columns]))),
-                                            ]
-                                        ),
-                                    ]
-                                ),
-                                html.Tr(
-                                    [
-                                        html.Td("Valores más frecuentes (Freq)"),
-                                        html.Td(
-                                            [
-                                                # Mostramos la frecuencia del valor más frecuente por variable de tipo object
-                                                html.P("{}".format(", ".join(["{}: {}".format(col, df[col].value_counts().values[0]) for col in df.select_dtypes(include=['object']).columns]))),
-                                            ]
-                                        ),
-                                    ]
-                                ),
-                            ]
-                        )
-                    ],
-                    bordered=True,
-                    hover=True,
-                    responsive=True,
-                    striped=True,
-                    style={'textAlign': 'center', 'width': '100%'}
-                ),
-                
-                
-            ]),
-
-
             dcc.Tab(label='Análisis Correlacional', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Br(),
 
@@ -494,7 +420,7 @@ def update_graph1(value):
     for i in value:
         fig.add_trace(go.Histogram(x=df[i], name=i))
     fig.update_layout(
-        xaxis_title=str(value),
+        xaxis_title=str(", ".join(value)),
         yaxis_title='Variable(s)',
     )
 

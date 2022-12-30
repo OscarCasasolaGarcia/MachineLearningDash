@@ -1,9 +1,23 @@
 from dash import Dash, dcc, html, Input, Output, callback
-from pages import home, eda, acp, arboles_regresion, arboles_clasificacion, bosques_regresion, bosques_clasificacion
+from pages import home, eda, acp, arboles_regresion, arboles_clasificacion, bosques_regresion, bosques_clasificacion, svm, cluster_AD
 import dash_bootstrap_components as dbc
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],suppress_callback_exceptions=True)
 server = app.server
+
+from dash_bootstrap_templates import load_figure_template,ThemeChangerAIO, template_from_url
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+theme_change = ThemeChangerAIO(
+    aio_id="theme",button_props={
+        "color": "primary",
+        "children": "SELECT THEME",
+        "outline": True,
+    },
+    radio_props={
+        "persistence": True,
+    },
+)
 
 # A la pestaña de la página le ponemos el título
 app.title = 'Smart Mining'
@@ -27,7 +41,9 @@ CONTENT_STYLE = {
 
 navbar = dbc.NavbarSimple(
     children=[
-        dbc.NavItem(dbc.NavLink("Home", href="/")),
+        # Agregamos el botón para cambiar el tema
+        dbc.NavItem(theme_change, className="ml-auto"),
+        # dbc.NavItem(dbc.NavLink("Home", href="/")),
         dbc.NavItem(dbc.NavLink("EDA📊", href="/eda")),
         dbc.NavItem(dbc.NavLink("ACP💻", href="/acp")),
         dbc.DropdownMenu(
@@ -48,6 +64,9 @@ navbar = dbc.NavbarSimple(
             in_navbar=True,
             label="Bosques aleatorios🌳🌳",
         ),
+
+        dbc.NavItem(dbc.NavLink("Modelos Combinados🤖", href="/cluster_AD")),
+        dbc.NavItem(dbc.NavLink("SVM🔵🟡", href="/svm")),
     ],
     brand="Smart Mining",
     brand_href="/",
@@ -76,6 +95,10 @@ def render_page_content(pathname):
         return bosques_clasificacion.layout
     elif pathname == "/bosques_regresion":
         return bosques_regresion.layout
+    elif pathname == "/svm":
+        return svm.layout
+    elif pathname == "/cluster_AD":
+        return cluster_AD.layout
     
     return html.Div(
         [
