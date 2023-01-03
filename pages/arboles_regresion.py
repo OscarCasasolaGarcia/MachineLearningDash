@@ -516,6 +516,10 @@ def parse_contents(contents, filename,date):
                     is_open=False,
                     size='xl',
                 ),
+
+                html.Hr(),
+
+                html.Div(id='button-arbol-svg-ar'),
             ]),
 
             dcc.Tab(label='Nuevos Pronósticos', style=tab_style, selected_style=tab_selected_style, children=[
@@ -564,6 +568,7 @@ def update_graph2(xaxis_column2, yaxis_column2):
     Output('arbol-arbol-regresion', 'children'),
     Output('output-regresion-arbol-regresion-Final', 'children'),
     Output('valor-regresion2', 'children'),
+    Output('button-arbol-svg-ar', 'children'),
     Input('submit-button-arbol-regresion', 'n_clicks'),
     State('X_Clase_Arbol_Regresion', 'value'),
     State('Y_Clase_Arbol_Regresion', 'value'),
@@ -576,6 +581,8 @@ def update_graph2(xaxis_column2, yaxis_column2):
 def regresion(n_clicks, X_Clase, Y_Clase, criterio_division,criterion, splitter, max_depth, min_samples_split, min_samples_leaf):
     if n_clicks is not None:
         global X
+        global X_Clase2
+        X_Clase2 = X_Clase
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
 
@@ -719,7 +726,10 @@ def regresion(n_clicks, X_Clase, Y_Clase, criterio_division,criterion, splitter,
                     ])),
                     id="collapse",
                 ),
-        ])
+        ]), html.Div([
+            dbc.Button(id='btn-ar', children='Haz click para descargar el árbol de decisión en formato PDF', color="dark", className="mr-1", style={'width': '100%', 'text-align': 'center'}),
+            dcc.Download(id="download-ar"),
+        ]),
 
     elif n_clicks is None:
         import dash.exceptions as de
@@ -779,3 +789,23 @@ def toggle_modal(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
+
+
+@callback(
+    Output("download-ar", "data"),
+    Input("btn-ar", "n_clicks"),
+    prevent_initial_call=True,
+)
+def generar_arbol_svg(n_clicks):
+    import graphviz
+    from sklearn.tree import export_graphviz
+
+    Elementos = export_graphviz(PronosticoAD,
+                            feature_names = df[X_Clase2].columns,
+                            filled = True,
+                            rounded = True,
+                            special_characters = True)
+    Arbol = graphviz.Source(Elementos)
+    Arbol.format = 'pdf'
+
+    return dcc.send_file(Arbol.render(filename='ArbolAR', view=False))

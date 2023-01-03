@@ -330,7 +330,7 @@ def parse_contents(contents, filename,date):
                 ),
             ]),
         
-            dcc.Tab(label='Distribución de Datos', style=tab_style, selected_style=tab_selected_style,children=[
+            dcc.Tab(label='Gráfico de Series de Tiempo', style=tab_style, selected_style=tab_selected_style,children=[
                 html.Br(),
                 dbc.Row([
                     dbc.Col([
@@ -818,7 +818,7 @@ def regresionFinal(n_clicks, data, values_X1, values_X2, values_X3, values_X4, v
 
             clasiFinal = PronosticoBA.predict(XPredict)
             return html.Div([
-                dbc.Alert('El valor pronosticado con un árbol de decisión que tiene una Exactitud de: ' + str(round(ScoreArbol, 4)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
+                dbc.Alert('El valor pronosticado con un Bosque Aleatorio que tiene una Exactitud de: ' + str(round(ScoreArbol, 6)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
             ])
 
 

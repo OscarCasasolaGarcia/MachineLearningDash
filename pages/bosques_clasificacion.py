@@ -575,6 +575,11 @@ def parse_contents(contents, filename,date):
 
                 html.H2(["", dbc.Badge("Curva ROC", className="ms-1")]),
                 dcc.Graph(id='roc-bosque-clasificacion'),
+
+                html.Hr(),
+
+                html.Div(id='arbol_estimador_BAC'),
+                html.Div(id='arbol_estimador_BAC2'),
             ]),
 
             dcc.Tab(label='Nuevas Clasificaciones', style=tab_style, selected_style=tab_selected_style, children=[
@@ -623,6 +628,8 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
     Output('roc-bosque-clasificacion', 'figure'),
     Output('output-clasificacion-BAC', 'children'),
     Output('valor-clasificacion-BAC', 'children'),
+    Output('arbol_estimador_BAC', 'children'),
+    Output('arbol_estimador_BAC2', 'children'),
     Input('submit-button-clasificacion-bosques','n_clicks'),
     State('X_Clase_bosque_clasificacion', 'value'),
     State('Y_Clase_bosque_clasificacion', 'value'),
@@ -637,6 +644,11 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
     State('max_leaf_nodes_BAC', 'value'))
 def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_estimators, n_jobs, max_features, max_depth, min_samples_split, min_samples_leaf, max_leaf_nodes):
     if n_clicks is not None:
+        global X_Clase2
+        global n_estimators2
+        X_Clase2 = X_Clase
+        n_estimators2 = n_estimators
+
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
 
@@ -869,19 +881,55 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, n_es
 
         ]), html.Div([
                 dbc.Button("Haz click para mostrar la clasificación...", id="collapse-button-BA", className="mb-3", color="primary"),
-                dbc.Collapse(
-                    dbc.Card(dbc.CardBody([
-                        html.Div(id='output-container-button'),
-                    ])),
-                    id="collapse",
+        ]), html.Div([
+            html.H2(["", dbc.Badge("Visualización del árbol de decisión por medio de la elección del estimador", className="ms-1")]),
+            dbc.Row([
+                    dbc.Col([
+                        dcc.Markdown('''**Estimador:**'''),
+                        dbc.Input(
+                            id='arbol_estimador_BAC',
+                            type='number',
+                            placeholder='Selecciona el árbol que quieras visualizar',
+                            value=0,
+                            min=0,
+                            max=n_estimators - 1,
+                            step=1,
+                        ),
+                    ], width=2, align='center'),
+                ], justify='center', align='center'),
+                html.Hr(),
+            
+        ]), html.Div([
+                dbc.Button(
+                    "Haz click para visualizar el árbol de decisión obtenido", id="open-body-scroll-BAC-Arbol", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
+                ),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("Árbol de Decisión obtenido")),
+                        dbc.ModalBody(
+                            [
+                                html.Div(id='arbol_elegido_BAC'),
+                            ]
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close-body-scroll-BAC-Arbol",
+                                className="ms-auto",
+                                n_clicks=0,
+                            )
+                        ),
+                    ],
+                    id="modal-body-scroll-BAC-Arbol",
+                    scrollable=True,
+                    is_open=False,
+                    size='xl',
                 ),
         ])
     
     elif n_clicks is None:
         import dash.exceptions as de
         raise de.PreventUpdate
-
-
 
 @callback(
     Output('valor-clasificacion-BAC2', 'children'),
@@ -910,6 +958,43 @@ def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, value
             return html.Div([
                 dbc.Alert('El valor clasificado con un Bosque Aleatorio que tiene una Exactitud de: ' + str(round(exactitud, 4)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
             ])
+
+
+@callback(
+    Output('arbol_elegido_BAC', 'children'),
+    Input('arbol_estimador_BAC', 'value'),
+)
+def generar_arbol(arbol_elegido_BAC):
+    try:
+        EstimadorBAC = ClasificacionBA.estimators_[arbol_elegido_BAC]
+
+        # Generamos en texto el árbol de decisión
+        from sklearn.tree import export_text
+        r = export_text(EstimadorBAC, feature_names=list(df[X_Clase2].columns))
+
+        return html.Div([
+            dbc.Alert(r, color="success", style={'whiteSpace': 'pre-line'}, className="mb-3")
+        ])
+    except:
+        return html.Div([
+            dbc.Alert('El árbol elegido no existe, intenta con otro estimador...', color="danger", style={'textAlign': 'center'})
+        ])
+
+
+
+@callback(
+    Output("modal-body-scroll-BAC-Arbol", "is_open"),
+    [
+        Input("open-body-scroll-BAC-Arbol", "n_clicks"),
+        Input("close-body-scroll-BAC-Arbol", "n_clicks"),
+    ],
+    [State("modal-body-scroll-BAC-Arbol", "is_open")],
+)
+def toggle_modal_BAC(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
 
 @callback(
     Output("modal-body-scroll-info-BAC", "is_open"),

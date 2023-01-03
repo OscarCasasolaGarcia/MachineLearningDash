@@ -523,6 +523,11 @@ def parse_contents(contents, filename,date):
                     is_open=False,
                     size='xl',
                 ),
+
+                html.Hr(),
+
+                html.Div(id='button-arbol-svg-modelos'),
+
             ]),
 
             dcc.Tab(label='Nuevas Clasificaciones', style=tab_style, selected_style=tab_selected_style, children=[
@@ -573,6 +578,7 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
     Output('arbol', 'children'),
     Output('output-clasificacion-arbol-decision', 'children'),
     Output('valor-clasificacion-arbol-decision', 'children'),
+    Output('button-arbol-svg-modelos', 'children'),
     Input('submit-button-clasificacion','n_clicks'),
     State('X_Clase', 'value'),
     State('Y_Clase', 'value'),
@@ -586,6 +592,10 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
 def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, splitter, max_depth, min_samples_split, min_samples_leaf, theme):
     if n_clicks is not None:
         global ClasificacionAD
+        global X_Clase2
+        X_Clase2 = X_Clase
+        global Y_Clase2
+        Y_Clase2 = Y_Clase
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
         from sklearn.tree import DecisionTreeClassifier
@@ -607,6 +617,7 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, spli
         ClasificacionAD.fit(X_train, Y_train)
 
         #Se etiquetan las clasificaciones
+        global Y_Clasificacion
         Y_Clasificacion = ClasificacionAD.predict(X_validation)
         Valores = pd.DataFrame(Y_validation, Y_Clasificacion)
 
@@ -822,7 +833,10 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterio_division, criterion, spli
                     ])),
                     id="collapse",
                 ),
-        ])
+        ]), html.Div([
+            dbc.Button(id='btn', children='Haz click para descargar el árbol de decisión en formato PDF', color="dark", className="mr-1", style={'width': '100%', 'text-align': 'center'}),
+            dcc.Download(id="download-ad-modelos"),
+        ]),
 
     elif n_clicks is None:
         import dash.exceptions as de
@@ -869,3 +883,25 @@ def toggle_modal(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
+
+
+
+@callback(
+    Output("download-ad-modelos", "data"),
+    Input("btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def generar_arbol_svg(n_clicks):
+    import graphviz
+    from sklearn.tree import export_graphviz
+
+    Elementos = export_graphviz(ClasificacionAD, 
+                            feature_names = df[X_Clase2].columns,
+                            class_names = df[Y_Clase2].unique().astype(str),
+                            filled = True,
+                            rounded = True,
+                            special_characters = True)
+    Arbol = graphviz.Source(Elementos)
+    Arbol.format = 'pdf'
+
+    return dcc.send_file(Arbol.render(filename='ArbolAD', view=False))

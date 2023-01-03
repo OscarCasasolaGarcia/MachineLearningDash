@@ -461,14 +461,24 @@ def parse_contents(contents, filename,date):
 
                 dbc.Button("Click para entrenar al algoritmo", color="danger", className="mr-1", id='submit-button-modelos',style={'width': '100%'}),
 
-                html.Hr(),
+                html.Br(),
 
+                html.H2(["", dbc.Badge("Obtención del número óptimo de clusters con el método del codo", className="ms-1")]),
                 dcc.Graph(id='kmeans-elbow-modelos'),
 
+
+                html.Hr(),
+                html.H2(["", dbc.Badge("Dataframe con los clusters obtenidos", className="ms-1")]),
                 html.Div(id='table-kmeans-modelos'),
 
+                html.Hr(),
+
+                html.H2(["", dbc.Badge("Centroides de los clusters y su respectiva cantidad de elementos", className="ms-1")]),
                 dbc.Table(id='table-centroides-modelos', bordered=True, dark=True, hover=True, responsive=True, striped=True),
 
+                html.Br(),
+
+                html.H2(["", dbc.Badge("Visualización de los clusters obtenidos y su centroide", className="ms-1")]),
                 dcc.Graph(id='kmeans-3d-modelos'),
 
                 # Mostramos la matriz de confusión
@@ -579,6 +589,11 @@ def update_graph(xaxis_column, yaxis_column, caxis_column):
 def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, min_samples_split, min_samples_leaf, theme):
     if n_clicks is not None:
         global ClasificacionAD
+        global X_Clase2
+        X_Clase2 = X_Clase
+        global Y_Clase2
+        Y_Clase2 = Y_Clase
+        global Y
         X = np.array(df[X_Clase])
         Y = np.array(df[Y_Clase])
         from sklearn.tree import DecisionTreeClassifier
@@ -663,6 +678,7 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
         fig2.add_trace(go.Scatter3d(x=MParticional.cluster_centers_[:, 0], y=MParticional.cluster_centers_[:, 1], z=MParticional.cluster_centers_[:, 2], mode='markers', marker=dict(color='purple', size=12, line=dict(color='black', width=12)), text=np.arange(kl.elbow)))
         # Se oculta la leyenda
         fig2.update_layout(showlegend=False)
+        # Se ajusta el tamaño de la figura
 
 
         Y2 = np.array(dff['Cluster'])
@@ -681,10 +697,12 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
         ClasificacionAD.fit(X_train, Y_train)
 
         #Se etiquetan las clasificaciones
+        global Y_Clasificacion
         Y_Clasificacion = ClasificacionAD.predict(X_validation)
         Valores = pd.DataFrame(Y_validation, Y_Clasificacion)
 
         #Se calcula la exactitud promedio de la validación
+        global exactitud
         exactitud = accuracy_score(Y_validation, Y_Clasificacion)
         
         #Matriz de clasificación
@@ -761,13 +779,12 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
         for i in range(n_classes):
             fpr[i], tpr[i], _ = roc_curve(y_test_bin[:, i], y_score[:, i])
             fig4.add_trace(go.Scatter(x=fpr[i], y=tpr[i], name='Clase {}'.format(i)+', AUC: {}'.format(auc(fpr[i], tpr[i]).round(6))))
-        fig4.add_trace(go.Scatter(x=[0, 1], y=[0, 1], name='Referencia', line=dict(color='navy', dash='dash')))
+        fig4.add_trace(go.Scatter(x=[0, 1], y=[0, 1], name='Random Classifier', line=dict(color='black', width=2, dash='dash')))
         fig4.update_layout(title_text='Rendimiento', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate')
 
         # Generamos en texto el árbol de decisión
         from sklearn.tree import export_text
         r = export_text(ClasificacionAD, feature_names=list(df[X_Clase].columns))
-
 
         namesColumnsClustersReal = []
         namesColumnsClustersClass = []
@@ -893,6 +910,8 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[2])),
                     dbc.Input(id='values_X4_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[3])),
+                ], width=6),
+                dbc.Col([
                     dbc.Input(id='values_X5_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[4])),
                     dbc.Input(id='values_X6_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[5],style={'width': '100%'}),
@@ -901,22 +920,18 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[6])),
                     dbc.Input(id='values_X8_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[7],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[7])),
-                    # dbc.Input(id='values_X9_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[8],style={'width': '100%'}),
-                    # dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[8])),
-                    # dbc.Input(id='values_X10_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[9],style={'width': '100%'}),
-                    # dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[9])),
                 ], width=6),
             ])
 
         ]), html.Div([
-                dbc.Button("Mostrar valores reales y pronosticados", id="collapse-button-modelos", className="mb-3", color="primary"),
+                dbc.Button("Haz click para mostrar la clasificación obtenida", id="collapse-button-modelos", className="mb-3", color="dark", style={'width': '100%', 'text-align': 'center'}),
                 dbc.Collapse(
                     dbc.Card(dbc.CardBody([
                         html.Div(id='output-container-button-modelos'),
                     ])),
                     id="collapse",
                 ),
-        ])
+        ]),
 
     elif n_clicks is None:
         import dash.exceptions as de
@@ -934,24 +949,18 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, criterion, splitter, max_depth, mi
     State('values_X6_AD_Clasificacion', 'value'),
     State('values_X7_AD_Clasificacion', 'value'),
     State('values_X8_AD_Clasificacion', 'value'),
-    State('values_X9_AD_Clasificacion', 'value'),
-    State('values_X10_AD_Clasificacion', 'value'),
 )
-def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8, values_X9, values_X10):
+def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8):
     if n_clicks is not None:
-        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None or values_X9 is None or values_X10 is None:
+        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None:
             return html.Div([
-                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
+                dbc.Alert('Debe ingresar todos los valores de las variables', color="danger")
             ])
         else:
-            # Convertimos el arreglo a un DataFrame
-            # values_X = np.array([values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8, values_X9, values_X10])
-            
-            XPredict = pd.DataFrame([values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8, values_X9, values_X10]).transpose()
-
+            XPredict = pd.DataFrame([[values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8]])
             clasiFinal = ClasificacionAD.predict(XPredict)
             return html.Div([
-                dbc.Alert('Valor pronosticado: ' + str(clasiFinal), color="success")
+                dbc.Alert('El valor clasificado con un Árbol de Decisión que tiene una Exactitud de: ' + str(round(exactitud, 6)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
             ])
 
 

@@ -50,7 +50,7 @@ tab_selected_style = {
 
 
 layout = html.Div([
-    html.H1('Support Vectors Machine (SVM)🔵🟡', style={'text-align': 'center'}),
+    html.H1('Support Vector Machines (SVM)🔵🟡', style={'text-align': 'center'}),
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -380,15 +380,10 @@ def parse_contents(contents, filename,date):
                 html.Br(),
 
                 dcc.Markdown('''
-                    💭 **criterion**. Indica la función que se utilizará para dividir los datos. Puede ser (ganancia de información) gini y entropy (Clasificación). Cuando el árbol es de regresión se usan funciones como el error cuadrado medio (MSE).
-                    
-                    💭 **splitter**. Indica el criterio que se utilizará para dividir los nodos. Puede ser best o random. Best selecciona la mejor división mientras que random selecciona la mejor división aleatoriamente.                        
-                    
-                    💭 **max_depth**. Indica la máxima profundidad a la cual puede llegar el árbol. Esto ayuda a combatir el overfitting, pero también puede provocar underfitting.
-                    
-                    💭 **min_samples_split**. Indica la cantidad mínima de datos para que un nodo de decisión se pueda dividir. Si la cantidad no es suficiente este nodo se convierte en un nodo hoja.
-                    
-                    💭 **min_samples_leaf**. Indica la cantidad mínima de datos que debe tener un nodo hoja. 
+                    💭 **kernel**: Especifica el tipo de kernel a utilizar en el algoritmo. Los kernels disponibles son 'linear', 'poly', 'rbf', 'sigmoid'.
+
+                    💭Mediante transformaciones matemáticas, se mapean los datos en un mejor espacio de representación por una determinada función, denominada kernel. Encontrar la transformación correcta para un conjunto de datos no es una tarea fácil, por lo que se usan diferentes kernels en una implementación de SVM.
+
                 '''),
 
                 dbc.Row([
@@ -429,34 +424,6 @@ def parse_contents(contents, filename,date):
 
                 html.H2(["", dbc.Badge("Vectores de Soporte", className="ms-1")]),
                 dcc.Graph(id='vectores-svm'),
-
-
-                dbc.Button(
-                    "Haz click para visualizar el árbol de decisión obtenido", id="open-body-scroll-svm", n_clicks=0, color="primary", className="mr-1", style={'width': '100%'}
-                ),
-
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader(dbc.ModalTitle("Árbol de Decisión obtenido")),
-                        dbc.ModalBody(
-                            [
-                                html.Div("sdfws"),
-                            ]
-                        ),
-                        dbc.ModalFooter(
-                            dbc.Button(
-                                "Close",
-                                id="close-body-scroll-svm",
-                                className="ms-auto",
-                                n_clicks=0,
-                            )
-                        ),
-                    ],
-                    id="modal-body-scroll-svm",
-                    scrollable=True,
-                    is_open=False,
-                    size='xl',
-                ),
             ]),
 
             dcc.Tab(label='Nuevas Clasificaciones', style=tab_style, selected_style=tab_selected_style, children=[
@@ -562,6 +529,7 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, kernel, theme):
         Valores = pd.DataFrame(Y_validation, Clasificaciones)
 
         #Se calcula la exactitud promedio de la validación
+        global exactitud
         exactitud = ModeloSVM.score(X_validation, Y_validation)
         
         #Matriz de clasificación
@@ -637,7 +605,7 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, kernel, theme):
                 ], justify="center"),
 
         ]), html.Div([
-            html.H2(["", dbc.Badge("Reporte del árbol de decisión obtenido", className="ms-1")]),
+            html.H2(["", dbc.Badge("Kernel utilizado", className="ms-1")]),
             dbc.Table(
                 [
                     html.Thead(
@@ -733,28 +701,19 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, kernel, theme):
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[1])),
                     dbc.Input(id='values_X3_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[2],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[2])),
+                ], width=6),
+                dbc.Col([
                     dbc.Input(id='values_X4_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[3],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[3])),
                     dbc.Input(id='values_X5_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[4],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[4])),
                     dbc.Input(id='values_X6_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[5],style={'width': '100%'}),
                     dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[5])),
-                    dbc.Input(id='values_X7_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[6],style={'width': '100%'}),
-                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[6])),
-                    dbc.Input(id='values_X8_AD_Clasificacion', type="number", placeholder=df[X_Clase].columns[7],style={'width': '100%'}),
-                    dbc.FormText("Ingrese el valor de la variable: " + str(df[X_Clase].columns[7])),
                 ], width=6),
             ])
-
         ]), html.Div([
-                dbc.Button("Mostrar valores reales y pronosticados", id="collapse-button", className="mb-3", color="primary"),
-                dbc.Collapse(
-                    dbc.Card(dbc.CardBody([
-                        html.Div(id='output-container-button'),
-                    ])),
-                    id="collapse",
-                ),
-        ])
+                dbc.Button("Haz click para mostrar la clasificación obtenida", id="collapse-button-svm", className="mb-3", color="dark", style={'width': '100%', 'text-align': 'center'}),
+        ]),
 
     elif n_clicks is None:
         import dash.exceptions as de
@@ -770,36 +729,22 @@ def clasificacion(n_clicks, X_Clase, Y_Clase, kernel, theme):
     State('values_X4_AD_Clasificacion', 'value'),
     State('values_X5_AD_Clasificacion', 'value'),
     State('values_X6_AD_Clasificacion', 'value'),
-    State('values_X7_AD_Clasificacion', 'value'),
-    State('values_X8_AD_Clasificacion', 'value'),
 )
-def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8):
+def AD_Clasificacion_Pronostico(n_clicks, values_X1, values_X2, values_X3, values_X4, values_X5, values_X6):
     if n_clicks is not None:
-        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None or values_X7 is None or values_X8 is None:
+        if values_X1 is None or values_X2 is None or values_X3 is None or values_X4 is None or values_X5 is None or values_X6 is None:
             return html.Div([
-                dbc.Alert('Debe ingresar los valores de las variables', color="danger")
+                dbc.Alert('Debe ingresar todos los valores de las variables', color="danger")
             ])
         else:
-            # Convertimos el arreglo a un DataFrame
-            values_X = np.array([values_X1, values_X2, values_X3, values_X4, values_X5, values_X6, values_X7, values_X8])
-            
-            XPredict = pd.DataFrame(values_X)
+            XPredict = pd.DataFrame([[values_X1, values_X2, values_X3, values_X4, values_X5, values_X6]])
 
-            clasiFinal = ModeloSVM.predict(XPredict)[0]
+            clasiFinal = ModeloSVM.predict(XPredict)
+            # Intercambiar los valores de la clasificación
+            if clasiFinal[0] == 0:
+                clasiFinal[0] = 1
+            else:
+                clasiFinal[0] = 0
             return html.Div([
-                dbc.Alert('Valor pronosticado: ' + str(clasiFinal), color="success")
+                dbc.Alert('El valor clasificado con una SVM que tiene una Exactitud de: ' + str(round(exactitud, 6)*100) + '% es: ' + str(clasiFinal[0]), color="success", style={'textAlign': 'center'})
             ])
-
-
-@callback(
-    Output("modal-body-scroll-svm", "is_open"),
-    [
-        Input("open-body-scroll-svm", "n_clicks"),
-        Input("close-body-scroll-svm", "n_clicks"),
-    ],
-    [State("modal-body-scroll-svm", "is_open")],
-)
-def toggle_modal(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
